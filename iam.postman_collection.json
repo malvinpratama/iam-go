@@ -1,0 +1,346 @@
+{
+  "info": {
+    "_postman_id": "b1e7a0c2-9f3d-4a6b-8c21-iam0001",
+    "name": "IAM — User & Auth (Go / Rust)",
+    "description": "REST API for the IAM microservice system. The Go (iam-go) and Rust (iam-rust) stacks expose an IDENTICAL API on http://localhost:8080, so this single collection works against either.\n\n## Quick start\n1. Start a stack: `cd iam-go && make up` (or `iam-rust`).\n2. Run **Auth > Login (admin)** — captures `admin_access_token`.\n3. Run **Auth > Register** then **Auth > Login (user)** — captures `user_id`, `access_token`, `refresh_token`.\n4. Try the **Users** and **RBAC** folders.\n\nLogin/Register/Refresh requests auto-save tokens into collection variables via test scripts, so most requests need no manual editing.\n\nBootstrap admin defaults: `admin@iam.local` / `admin12345`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "admin_email", "value": "admin@iam.local", "type": "string" },
+    { "key": "admin_password", "value": "admin12345", "type": "string" },
+    { "key": "user_email", "value": "alice@iam.local", "type": "string" },
+    { "key": "user_password", "value": "alicepass123", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "token_type", "value": "Bearer", "type": "string" },
+    { "key": "admin_access_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('user_id', b.user_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "description": "Create a user (assigned the default `user` role) and its profile. Public. Returns `user_id`."
+          }
+        },
+        {
+          "name": "Login (user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', b.access_token);",
+                  "pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "pm.collectionVariables.set('token_type', b.token_type);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "Authenticate the normal user. Saves `access_token`, `refresh_token`, and `token_type` to the active environment (falls back to collection variables)."
+          }
+        },
+        {
+          "name": "Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('admin_access_token', b.access_token);",
+                  "pm.collectionVariables.set('token_type', b.token_type);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "Authenticate the bootstrap admin. Saves `admin_access_token` (used for RBAC-protected requests)."
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', b.access_token);",
+                  "pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "pm.collectionVariables.set('token_type', b.token_type);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] },
+            "description": "Rotate the token pair. The old refresh token is revoked; new `access_token` + `refresh_token` are saved."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] },
+            "description": "Revoke the given refresh token. After this, **Refresh** with the same token returns 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "My Identity (roles & permissions)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/me", "host": ["{{base_url}}"], "path": ["me"] },
+            "description": "Authenticated. Returns YOUR own `user_id`, `email`, `roles`, and `permissions`. Use this to see what you can do."
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] },
+            "description": "Authenticated. Returns the caller's own profile."
+          }
+        },
+        {
+          "name": "Get User by ID (needs user:read)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] },
+            "description": "Requires `user:read`. With a normal-user token this returns **403**; with `{{admin_access_token}}` it returns 200. Swap the Authorization header to test RBAC."
+          }
+        },
+        {
+          "name": "List Users (needs user:read)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/users?page=1&page_size=20&query=",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "query", "value": "" }
+              ]
+            },
+            "description": "Requires `user:read`. Paginated list with optional `query` search on display_name."
+          }
+        },
+        {
+          "name": "Update Profile (self or profile:write)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Alice Updated\",\n  \"bio\": \"Hello from Postman\",\n  \"avatar_url\": \"https://example.com/a.png\",\n  \"phone\": \"+62123456789\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] },
+            "description": "Allowed when updating your own profile, or when you hold `profile:write`. All fields optional (sparse update)."
+          }
+        },
+        {
+          "name": "Delete User (needs user:delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] },
+            "description": "Requires `user:delete` (admin only)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC",
+      "item": [
+        {
+          "name": "List Roles (needs role:read)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/roles", "host": ["{{base_url}}"], "path": ["roles"] },
+            "description": "Requires `role:read`. Lists roles and their permissions."
+          }
+        },
+        {
+          "name": "List Permissions (needs role:read)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/permissions", "host": ["{{base_url}}"], "path": ["permissions"] },
+            "description": "Requires `role:read`. Lists every permission defined in the system."
+          }
+        },
+        {
+          "name": "Create Role (needs role:write)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"moderator\",\n  \"description\": \"Moderator role\"\n}" },
+            "url": { "raw": "{{base_url}}/roles", "host": ["{{base_url}}"], "path": ["roles"] },
+            "description": "Requires `role:write` (admin). Creates a new custom role."
+          }
+        },
+        {
+          "name": "Update Role (needs role:write)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated description\"\n}" },
+            "url": { "raw": "{{base_url}}/roles/moderator", "host": ["{{base_url}}"], "path": ["roles", "moderator"] },
+            "description": "Requires `role:write`. Updates a role's description."
+          }
+        },
+        {
+          "name": "Grant Permission to Role (needs role:write)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"permission\": \"user:read\"\n}" },
+            "url": { "raw": "{{base_url}}/roles/moderator/permissions", "host": ["{{base_url}}"], "path": ["roles", "moderator", "permissions"] },
+            "description": "Requires `role:write`. Adds a permission to a role."
+          }
+        },
+        {
+          "name": "Revoke Permission from Role (needs role:write)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/roles/moderator/permissions/user:read", "host": ["{{base_url}}"], "path": ["roles", "moderator", "permissions", "user:read"] },
+            "description": "Requires `role:write`. Removes a permission from a role."
+          }
+        },
+        {
+          "name": "Delete Role (needs role:write)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/roles/moderator", "host": ["{{base_url}}"], "path": ["roles", "moderator"] },
+            "description": "Requires `role:write`. Deletes a custom role. Built-in roles (`admin`, `user`) are protected (409)."
+          }
+        },
+        {
+          "name": "Assign Role to User (needs role:assign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/{{user_id}}/roles", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}", "roles"] },
+            "description": "Requires `role:assign` (admin). Promotes `{{user_id}}` to the given role. Afterwards the user's token resolves the new permissions on its next request (dynamic RBAC)."
+          }
+        },
+        {
+          "name": "Revoke Role from User (needs role:assign)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}/roles/admin", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}", "roles", "admin"] },
+            "description": "Requires `role:assign` (admin). Removes the named role (here `admin`) from `{{user_id}}`. Change the last path segment to revoke a different role."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Healthz",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/healthz", "host": ["{{base_url}}"], "path": ["healthz"] },
+            "description": "Liveness check. Public."
+          }
+        }
+      ]
+    }
+  ]
+}

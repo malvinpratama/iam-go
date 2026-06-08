@@ -1,0 +1,20 @@
+info:
+  name: Delete Role (needs role:write)
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{base_url}}/roles/moderator"
+  headers:
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `role:write`. Deletes a custom role. Built-in roles (`admin`, `user`) are protected (409).

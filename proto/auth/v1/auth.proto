@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/malvin/iam-go/gen/auth/v1;authv1";
+
+// AuthService is the source of truth for identity, credentials, tokens and RBAC.
+service AuthService {
+  // Identity & tokens
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (TokenPair);
+  rpc Refresh(RefreshRequest) returns (TokenPair);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // ValidateToken is called by the gateway on every authenticated request.
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  // DeleteUser removes the identity entirely (credentials, roles, refresh tokens).
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+
+  // RBAC management
+  rpc CreateRole(CreateRoleRequest) returns (Role);
+  rpc UpdateRole(UpdateRoleRequest) returns (Role);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
+  rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
+  rpc GrantPermission(GrantPermissionRequest) returns (GrantPermissionResponse);
+  rpc RevokePermission(RevokePermissionRequest) returns (RevokePermissionResponse);
+}
+
+// ── Identity & tokens ───────────────────────────────────────
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  string email = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message TokenPair {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3; // access token TTL in seconds
+  string token_type = 4; // "Bearer"
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+  string access_token = 2; // revoked (denylisted by jti) on logout
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  string user_id = 1;
+  string email = 2;
+  repeated string roles = 3;
+  repeated string permissions = 4;
+}
+
+// ── RBAC ────────────────────────────────────────────────────
+
+message Role {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string permissions = 4;
+}
+
+message Permission {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message CreateRoleRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message UpdateRoleRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message DeleteRoleRequest {
+  string name = 1;
+}
+
+message DeleteRoleResponse {
+  bool success = 1;
+}
+
+message ListRolesRequest {}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message AssignRoleResponse {
+  bool success = 1;
+}
+
+message RevokeRoleRequest {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message RevokeRoleResponse {
+  bool success = 1;
+}
+
+message ListPermissionsRequest {}
+
+message ListPermissionsResponse {
+  repeated Permission permissions = 1;
+}
+
+message GrantPermissionRequest {
+  string role_name = 1;
+  string permission_name = 2;
+}
+
+message GrantPermissionResponse {
+  bool success = 1;
+}
+
+message RevokePermissionRequest {
+  string role_name = 1;
+  string permission_name = 2;
+}
+
+message RevokePermissionResponse {
+  bool success = 1;
+}

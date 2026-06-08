@@ -1,0 +1,29 @@
+info:
+  name: Create Role (needs role:write)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/roles"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "moderator",
+        "description": "Moderator role"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `role:write` (admin). Creates a new custom role.

@@ -1,0 +1,20 @@
+info:
+  name: Delete User (needs user:delete)
+  type: http
+  seq: 6
+
+http:
+  method: DELETE
+  url: "{{base_url}}/users/{{user_id}}"
+  headers:
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `user:delete` (admin only).

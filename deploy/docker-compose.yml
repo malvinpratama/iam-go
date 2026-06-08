@@ -1,0 +1,79 @@
+name: iam-go
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"   # bound to localhost only (not exposed externally)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app}"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  auth:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        SERVICE: auth
+    environment:
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL}
+      AUTH_GRPC_PORT: ${AUTH_GRPC_PORT:-50051}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-iam-auth}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-900}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-604800}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@iam.local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin12345}
+      APP_ENV: ${APP_ENV:-development}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-me}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  user:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        SERVICE: user
+    environment:
+      USER_DATABASE_URL: ${USER_DATABASE_URL}
+      USER_GRPC_PORT: ${USER_GRPC_PORT:-50052}
+      APP_ENV: ${APP_ENV:-development}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-me}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        SERVICE: gateway
+    environment:
+      GATEWAY_HTTP_PORT: ${GATEWAY_HTTP_PORT:-8080}
+      AUTH_GRPC_ADDR: ${AUTH_GRPC_ADDR:-auth:50051}
+      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-user:50052}
+      APP_ENV: ${APP_ENV:-development}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-me}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8080}:8080"
+    depends_on:
+      - auth
+      - user
+
+volumes:
+  pgdata:

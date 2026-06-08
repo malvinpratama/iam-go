@@ -1,0 +1,7 @@
+info:
+  name: RBAC
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

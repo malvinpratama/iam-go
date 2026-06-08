@@ -1,0 +1,28 @@
+info:
+  name: Grant Permission to Role (needs role:write)
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{base_url}}/roles/moderator/permissions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "permission": "user:read"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `role:write`. Adds a permission to a role.

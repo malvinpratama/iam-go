@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: user }
+  template:
+    metadata:
+      labels: { app: user }
+    spec:
+      containers:
+        - name: user
+          image: iam-go-user
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          ports:
+            - containerPort: 50052
+          readinessProbe:
+            grpc: { port: 50052 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            grpc: { port: 50052 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user
+spec:
+  selector: { app: user }
+  ports:
+    - port: 50052
+      targetPort: 50052

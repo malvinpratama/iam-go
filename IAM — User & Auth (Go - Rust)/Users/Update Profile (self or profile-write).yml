@@ -1,0 +1,31 @@
+info:
+  name: Update Profile (self or profile:write)
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{base_url}}/users/{{user_id}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token_type}} {{access_token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "display_name": "Alice Updated",
+        "bio": "Hello from Postman",
+        "avatar_url": "https://example.com/a.png",
+        "phone": "+62123456789"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Allowed when updating your own profile, or when you hold `profile:write`. All fields optional (sparse update).

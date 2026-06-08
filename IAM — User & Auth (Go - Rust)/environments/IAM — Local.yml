@@ -1,0 +1,22 @@
+name: IAM — Local
+variables:
+  - name: base_url
+    value: http://localhost:8080
+  - name: admin_email
+    value: admin@iam.local
+  - name: admin_password
+    value: admin12345
+  - name: user_email
+    value: alice@iam.local
+  - name: user_password
+    value: alicepass123
+  - name: token_type
+    value: Bearer
+  - name: access_token
+    value: ""
+  - name: refresh_token
+    value: ""
+  - name: admin_access_token
+    value: ""
+  - name: user_id
+    value: ""

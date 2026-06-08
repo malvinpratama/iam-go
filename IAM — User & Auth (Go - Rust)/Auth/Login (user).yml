@@ -1,0 +1,37 @@
+info:
+  name: Login (user)
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{user_email}}",
+        "password": "{{user_password}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('status is 200', () => expect(res.getStatus()).to.equal(200));
+        const b = res.getBody();
+        bru.setVar('access_token', b.access_token);
+        bru.setVar('refresh_token', b.refresh_token);
+        bru.setVar('token_type', b.token_type);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Authenticate the normal user. Saves `access_token`, `refresh_token`, and `token_type` to the active environment (falls back to collection variables).

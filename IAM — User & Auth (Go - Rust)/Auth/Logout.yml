@@ -1,0 +1,28 @@
+info:
+  name: Logout
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{base_url}}/auth/logout"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token_type}} {{access_token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "refresh_token": "{{refresh_token}}"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Revoke the given refresh token. After this, **Refresh** with the same token returns 401.

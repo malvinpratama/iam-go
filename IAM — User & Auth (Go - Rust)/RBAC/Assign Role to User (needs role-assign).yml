@@ -1,0 +1,28 @@
+info:
+  name: Assign Role to User (needs role:assign)
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{base_url}}/users/{{user_id}}/roles"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "role": "admin"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `role:assign` (admin). Promotes `{{user_id}}` to the given role. Afterwards the user's token resolves the new permissions on its next request (dynamic RBAC).

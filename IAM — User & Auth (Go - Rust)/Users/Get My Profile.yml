@@ -1,0 +1,20 @@
+info:
+  name: Get My Profile
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{base_url}}/users/me"
+  headers:
+    - name: Authorization
+      value: "{{token_type}} {{access_token}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Authenticated. Returns the caller's own profile.

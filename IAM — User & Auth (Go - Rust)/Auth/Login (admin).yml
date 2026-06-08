@@ -1,0 +1,36 @@
+info:
+  name: Login (admin)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{admin_email}}",
+        "password": "{{admin_password}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('status is 200', () => expect(res.getStatus()).to.equal(200));
+        const b = res.getBody();
+        bru.setVar('admin_access_token', b.access_token);
+        bru.setVar('token_type', b.token_type);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Authenticate the bootstrap admin. Saves `admin_access_token` (used for RBAC-protected requests).

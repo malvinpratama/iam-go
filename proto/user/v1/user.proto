@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/malvin/iam-go/gen/user/v1;userv1";
+
+// UserService manages user profiles keyed by the canonical user_id minted by AuthService.
+service UserService {
+  rpc CreateProfile(CreateProfileRequest) returns (Profile);
+  rpc GetProfile(GetProfileRequest) returns (Profile);
+  rpc UpdateProfile(UpdateProfileRequest) returns (Profile);
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse);
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+}
+
+message Profile {
+  string user_id = 1;
+  string display_name = 2;
+  string bio = 3;
+  string avatar_url = 4;
+  string phone = 5;
+  string created_at = 6; // RFC3339
+  string updated_at = 7; // RFC3339
+}
+
+message CreateProfileRequest {
+  string user_id = 1;
+  string display_name = 2;
+}
+
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+// Only provided fields are updated (sparse update via optional fields).
+message UpdateProfileRequest {
+  string user_id = 1;
+  optional string display_name = 2;
+  optional string bio = 3;
+  optional string avatar_url = 4;
+  optional string phone = 5;
+}
+
+message DeleteProfileRequest {
+  string user_id = 1;
+}
+
+message DeleteProfileResponse {
+  bool success = 1;
+}
+
+message ListProfilesRequest {
+  int32 page = 1;       // 1-based
+  int32 page_size = 2;  // default 20, max 100
+  string query = 3;     // optional search on display_name
+}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}

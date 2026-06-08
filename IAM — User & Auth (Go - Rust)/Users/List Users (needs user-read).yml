@@ -1,0 +1,30 @@
+info:
+  name: List Users (needs user:read)
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{base_url}}/users?page=1&page_size=20&query="
+  headers:
+    - name: Authorization
+      value: "{{token_type}} {{admin_access_token}}"
+  params:
+    - name: page
+      value: "1"
+      type: query
+    - name: page_size
+      value: "20"
+      type: query
+    - name: query
+      value: ""
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Requires `user:read`. Paginated list with optional `query` search on display_name.

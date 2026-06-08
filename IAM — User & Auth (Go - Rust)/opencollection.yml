@@ -1,0 +1,48 @@
+opencollection: 1.0.0
+
+info:
+  name: IAM — User & Auth (Go / Rust)
+
+request:
+  variables:
+    - name: base_url
+      value: http://localhost:8080
+    - name: admin_email
+      value: admin@iam.local
+    - name: admin_password
+      value: admin12345
+    - name: user_email
+      value: alice@iam.local
+    - name: user_password
+      value: alicepass123
+    - name: access_token
+      value: ""
+    - name: refresh_token
+      value: ""
+    - name: token_type
+      value: Bearer
+    - name: admin_access_token
+      value: ""
+    - name: user_id
+      value: ""
+
+docs:
+  content: |-
+    REST API for the IAM microservice system. The Go (iam-go) and Rust (iam-rust) stacks expose an IDENTICAL API on http://localhost:8080, so this single collection works against either.
+
+    ## Quick start
+    1. Start a stack: `cd iam-go && make up` (or `iam-rust`).
+    2. Run **Auth > Login (admin)** — captures `admin_access_token`.
+    3. Run **Auth > Register** then **Auth > Login (user)** — captures `user_id`, `access_token`, `refresh_token`.
+    4. Try the **Users** and **RBAC** folders.
+
+    Login/Register/Refresh requests auto-save tokens into collection variables via test scripts, so most requests need no manual editing.
+
+    Bootstrap admin defaults: `admin@iam.local` / `admin12345`.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

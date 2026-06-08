@@ -1,0 +1,46 @@
+# Defense-in-depth: restrict who can reach the internal services.
+# Only the gateway may call auth/user; only auth/user may reach postgres.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: auth-allow-gateway
+spec:
+  podSelector:
+    matchLabels: { app: auth }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: gateway }
+      ports:
+        - { protocol: TCP, port: 50051 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-allow-gateway
+spec:
+  podSelector:
+    matchLabels: { app: user }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: gateway }
+      ports:
+        - { protocol: TCP, port: 50052 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-services
+spec:
+  podSelector:
+    matchLabels: { app: postgres }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: auth } }
+        - podSelector: { matchLabels: { app: user } }
+      ports:
+        - { protocol: TCP, port: 5432 }

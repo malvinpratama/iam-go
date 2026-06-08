@@ -1,0 +1,35 @@
+info:
+  name: Register
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/auth/register"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{user_email}}",
+        "password": "{{user_password}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('status is 201', () => expect(res.getStatus()).to.equal(201));
+        const b = res.getBody();
+        bru.setVar('user_id', b.user_id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Create a user (assigned the default `user` role) and its profile. Public. Returns `user_id`.

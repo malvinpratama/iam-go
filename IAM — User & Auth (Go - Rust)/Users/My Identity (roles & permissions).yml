@@ -1,0 +1,20 @@
+info:
+  name: My Identity (roles & permissions)
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/me"
+  headers:
+    - name: Authorization
+      value: "{{token_type}} {{access_token}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Authenticated. Returns YOUR own `user_id`, `email`, `roles`, and `permissions`. Use this to see what you can do.

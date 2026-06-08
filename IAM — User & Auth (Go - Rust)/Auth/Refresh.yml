@@ -1,0 +1,36 @@
+info:
+  name: Refresh
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/auth/refresh"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "refresh_token": "{{refresh_token}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('status is 200', () => expect(res.getStatus()).to.equal(200));
+        const b = res.getBody();
+        bru.setVar('access_token', b.access_token);
+        bru.setVar('refresh_token', b.refresh_token);
+        bru.setVar('token_type', b.token_type);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: Rotate the token pair. The old refresh token is revoked; new `access_token` + `refresh_token` are saved.
