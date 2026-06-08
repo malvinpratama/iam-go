@@ -35,4 +35,4 @@ client ──REST──▶ Gateway (Gin) ──gRPC──▶ Auth Service ──
                      └ validates JWT, resolves permissions, enforces RBAC per route
 ```
 
-The parallel Rust implementation lives in [`../../../iam-rust`](../../../iam-rust).
+The parallel Rust implementation lives in iam-rust (https://github.com/malvinpratama/iam-rust).
