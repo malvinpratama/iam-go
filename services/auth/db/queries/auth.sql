@@ -4,17 +4,63 @@ VALUES ($1, $2)
 RETURNING id, email, status, created_at, updated_at;
 
 -- name: GetUserByEmail :one
-SELECT id, email, password_hash, status, created_at, updated_at
+SELECT id, email, password_hash, status, email_verified, failed_login_attempts, locked_until, created_at, updated_at
 FROM users
 WHERE email = $1;
 
 -- name: GetUserByID :one
-SELECT id, email, password_hash, status, created_at, updated_at
+SELECT id, email, password_hash, status, email_verified, failed_login_attempts, locked_until, created_at, updated_at
 FROM users
 WHERE id = $1;
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;
+
+-- name: IncrementLoginFailure :one
+UPDATE users SET failed_login_attempts = failed_login_attempts + 1
+WHERE id = $1
+RETURNING failed_login_attempts;
+
+-- name: LockUser :exec
+UPDATE users SET locked_until = $2, failed_login_attempts = 0 WHERE id = $1;
+
+-- name: ResetLoginState :exec
+UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1;
+
+-- name: MarkEmailVerified :exec
+UPDATE users SET email_verified = true WHERE id = $1;
+
+-- name: UpdatePassword :exec
+UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1;
+
+-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL;
+
+-- name: CreateEmailVerification :exec
+INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES ($1, $2, $3);
+
+-- name: ConsumeEmailVerification :one
+UPDATE email_verifications SET consumed_at = now()
+WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+RETURNING user_id;
+
+-- name: CreatePasswordReset :exec
+INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3);
+
+-- name: ConsumePasswordReset :one
+UPDATE password_resets SET consumed_at = now()
+WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+RETURNING user_id;
+
+-- name: InsertAuditEvent :exec
+INSERT INTO audit_events (actor_id, actor_email, action, target, detail)
+VALUES ($1, $2, $3, $4, $5);
+
+-- name: ListAuditEvents :many
+SELECT id, actor_id, actor_email, action, target, detail, created_at
+FROM audit_events
+ORDER BY id DESC
+LIMIT $1;
 
 -- name: RevokeAccessJTI :exec
 INSERT INTO revoked_tokens (jti, expires_at)

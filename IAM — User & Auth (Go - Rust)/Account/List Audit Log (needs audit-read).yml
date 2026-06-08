@@ -1,0 +1,22 @@
+meta {
+  name: List Audit Log (needs audit:read)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/audit?limit=20
+  auth: none
+}
+
+params:query {
+  limit: 20
+}
+
+headers {
+  Authorization: {{token_type}} {{admin_access_token}}
+}
+
+docs {
+  Requires `audit:read` (admin). Lists recent sensitive actions (login, role/permission/user changes, password reset, ...).
+}

@@ -26,6 +26,59 @@ service AuthService {
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
   rpc GrantPermission(GrantPermissionRequest) returns (GrantPermissionResponse);
   rpc RevokePermission(RevokePermissionRequest) returns (RevokePermissionResponse);
+
+  // Account recovery & verification (v0.2)
+  rpc RequestEmailVerification(EmailRequest) returns (DevTokenResponse);
+  rpc VerifyEmail(TokenRequest) returns (GenericResponse);
+  rpc RequestPasswordReset(EmailRequest) returns (DevTokenResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (GenericResponse);
+
+  // Audit log (v0.2)
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+}
+
+// ── Account recovery & audit (v0.2) ─────────────────────────
+
+message EmailRequest {
+  string email = 1;
+}
+
+message TokenRequest {
+  string token = 1;
+}
+
+// dev_token is only populated when APP_ENV != production (so flows can be tested
+// without an email server). In production the token is emailed, never returned.
+message DevTokenResponse {
+  bool success = 1;
+  string dev_token = 2;
+}
+
+message GenericResponse {
+  bool success = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string new_password = 2;
+}
+
+message AuditEvent {
+  int64 id = 1;
+  string actor_id = 2;
+  string actor_email = 3;
+  string action = 4;
+  string target = 5;
+  string detail = 6;
+  string created_at = 7;
+}
+
+message ListAuditEventsRequest {
+  int32 limit = 1;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
 }
 
 // ── Identity & tokens ───────────────────────────────────────

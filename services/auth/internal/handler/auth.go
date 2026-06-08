@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	authv1 "github.com/malvin/iam-go/gen/auth/v1"
+	"github.com/malvin/iam-go/pkg/config"
+	"github.com/malvin/iam-go/pkg/email"
 	"github.com/malvin/iam-go/pkg/grpcutil"
 	"github.com/malvin/iam-go/pkg/jwt"
 	"github.com/malvin/iam-go/pkg/password"
@@ -31,14 +33,15 @@ type AuthHandler struct {
 	jwt        *jwt.Manager
 	refreshTTL time.Duration
 	dummyHash  string // for constant-time login on unknown users
+	mail       email.Sender
 }
 
 // New builds an AuthHandler.
-func New(pool *pgxpool.Pool, jwtMgr *jwt.Manager, refreshTTL time.Duration) *AuthHandler {
+func New(pool *pgxpool.Pool, jwtMgr *jwt.Manager, refreshTTL time.Duration, mail email.Sender) *AuthHandler {
 	// Precompute an argon2 hash so Login spends comparable time whether or not
 	// the user exists (mitigates user-enumeration via timing).
 	dummy, _ := password.Hash("constant-time-dummy-password")
-	return &AuthHandler{pool: pool, q: db.New(pool), jwt: jwtMgr, refreshTTL: refreshTTL, dummyHash: dummy}
+	return &AuthHandler{pool: pool, q: db.New(pool), jwt: jwtMgr, refreshTTL: refreshTTL, dummyHash: dummy, mail: mail}
 }
 
 // requirePerm enforces a permission from the gateway-supplied identity metadata
@@ -48,6 +51,22 @@ func requirePerm(ctx context.Context, perm string) error {
 		return nil
 	}
 	return status.Error(codes.PermissionDenied, "permission denied: "+perm)
+}
+
+// audit records a sensitive action; the actor comes from gateway metadata.
+func (h *AuthHandler) audit(ctx context.Context, action, target, detail string) {
+	id := grpcutil.FromIncoming(ctx)
+	h.auditAs(ctx, id.UserID, id.Email, action, target, detail)
+}
+
+// auditAs records an action with an explicit actor (e.g. during login).
+func (h *AuthHandler) auditAs(ctx context.Context, actorID, actorEmail, action, target, detail string) {
+	if !config.AuditEnabled() {
+		return
+	}
+	_ = h.q.InsertAuditEvent(ctx, db.InsertAuditEventParams{
+		ActorID: actorID, ActorEmail: actorEmail, Action: action, Target: target, Detail: detail,
+	})
 }
 
 // Register creates a user, assigns the default role, and returns the user id.
@@ -79,6 +98,7 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 		return nil, status.Error(codes.Internal, "tx commit failed")
 	}
 
+	h.auditAs(ctx, user.ID.String(), user.Email, "user.register", "", "")
 	return &authv1.RegisterResponse{UserId: user.ID.String(), Email: user.Email}, nil
 }
 
@@ -90,9 +110,33 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 		password.Verify(h.dummyHash, req.GetPassword())
 		return nil, status.Error(codes.Unauthenticated, "invalid credentials")
 	}
+
+	// Account lockout: refuse while locked.
+	if user.LockedUntil.Valid && user.LockedUntil.Time.After(time.Now()) {
+		return nil, status.Error(codes.Unauthenticated, "account temporarily locked, try again later")
+	}
+
 	if !password.Verify(user.PasswordHash, req.GetPassword()) {
+		if max := config.LoginMaxFailures(); max > 0 {
+			if n, ierr := h.q.IncrementLoginFailure(ctx, user.ID); ierr == nil && int(n) >= max {
+				_ = h.q.LockUser(ctx, db.LockUserParams{
+					ID:          user.ID,
+					LockedUntil: pgtype.Timestamptz{Time: time.Now().Add(config.LockoutDuration()), Valid: true},
+				})
+				h.auditAs(ctx, user.ID.String(), user.Email, "login.locked", "", "too many failed attempts")
+			}
+		}
+		h.auditAs(ctx, user.ID.String(), user.Email, "login.failure", "", "")
 		return nil, status.Error(codes.Unauthenticated, "invalid credentials")
 	}
+
+	// Optional: require a verified email before allowing login.
+	if config.RequireEmailVerification() && !user.EmailVerified {
+		return nil, status.Error(codes.Unauthenticated, "email not verified")
+	}
+
+	_ = h.q.ResetLoginState(ctx, user.ID)
+	h.auditAs(ctx, user.ID.String(), user.Email, "login.success", "", "")
 	return h.issueTokens(ctx, user.ID, user.Email)
 }
 
@@ -104,6 +148,10 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
 	}
 	if row.RevokedAt.Valid {
+		// Reuse of an already-revoked refresh token suggests theft → revoke the
+		// whole token family for this user (defensive).
+		_ = h.q.RevokeAllUserRefreshTokens(ctx, row.UserID)
+		h.auditAs(ctx, row.UserID.String(), "", "refresh.reuse_detected", "", "all sessions revoked")
 		return nil, status.Error(codes.Unauthenticated, "refresh token revoked")
 	}
 	if row.ExpiresAt.Valid && row.ExpiresAt.Time.Before(time.Now()) {
@@ -134,6 +182,7 @@ func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*a
 			})
 		}
 	}
+	h.audit(ctx, "auth.logout", "", "")
 	return &authv1.LogoutResponse{Success: true}, nil
 }
 
@@ -185,6 +234,7 @@ func (h *AuthHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUserRequ
 	if err := h.q.DeleteUser(ctx, userID); err != nil {
 		return nil, status.Error(codes.Internal, "failed to delete user")
 	}
+	h.audit(ctx, "user.delete", req.GetUserId(), "")
 	return &authv1.DeleteUserResponse{Success: true}, nil
 }
 
@@ -201,6 +251,7 @@ func (h *AuthHandler) CreateRole(ctx context.Context, req *authv1.CreateRoleRequ
 	if err != nil {
 		return nil, status.Error(codes.AlreadyExists, "role already exists")
 	}
+	h.audit(ctx, "role.create", req.GetName(), "")
 	return &authv1.Role{Id: role.ID, Name: role.Name, Description: role.Description}, nil
 }
 
@@ -228,6 +279,7 @@ func (h *AuthHandler) DeleteRole(ctx context.Context, req *authv1.DeleteRoleRequ
 	if err := h.q.DeleteRole(ctx, req.GetName()); err != nil {
 		return nil, status.Error(codes.Internal, "failed to delete role")
 	}
+	h.audit(ctx, "role.delete", req.GetName(), "")
 	return &authv1.DeleteRoleResponse{Success: true}, nil
 }
 
@@ -261,6 +313,7 @@ func (h *AuthHandler) AssignRole(ctx context.Context, req *authv1.AssignRoleRequ
 	if err := h.q.AssignRoleToUser(ctx, db.AssignRoleToUserParams{UserID: userID, Name: req.GetRoleName()}); err != nil {
 		return nil, status.Error(codes.Internal, "failed to assign role")
 	}
+	h.audit(ctx, "role.assign", req.GetUserId(), req.GetRoleName())
 	return &authv1.AssignRoleResponse{Success: true}, nil
 }
 
@@ -278,6 +331,7 @@ func (h *AuthHandler) RevokeRole(ctx context.Context, req *authv1.RevokeRoleRequ
 	if err := h.q.RevokeRoleFromUser(ctx, db.RevokeRoleFromUserParams{UserID: userID, Name: req.GetRoleName()}); err != nil {
 		return nil, status.Error(codes.Internal, "failed to revoke role")
 	}
+	h.audit(ctx, "role.revoke", req.GetUserId(), req.GetRoleName())
 	return &authv1.RevokeRoleResponse{Success: true}, nil
 }
 
@@ -301,6 +355,7 @@ func (h *AuthHandler) GrantPermission(ctx context.Context, req *authv1.GrantPerm
 	if err != nil {
 		return nil, status.Error(codes.Internal, "failed to grant permission")
 	}
+	h.audit(ctx, "permission.grant", req.GetRoleName(), req.GetPermissionName())
 	return &authv1.GrantPermissionResponse{Success: true}, nil
 }
 
@@ -312,7 +367,118 @@ func (h *AuthHandler) RevokePermission(ctx context.Context, req *authv1.RevokePe
 	if err != nil {
 		return nil, status.Error(codes.Internal, "failed to revoke permission")
 	}
+	h.audit(ctx, "permission.revoke", req.GetRoleName(), req.GetPermissionName())
 	return &authv1.RevokePermissionResponse{Success: true}, nil
+}
+
+// ── Account recovery & verification (v0.2) ──────────────────
+
+func (h *AuthHandler) RequestEmailVerification(ctx context.Context, req *authv1.EmailRequest) (*authv1.DevTokenResponse, error) {
+	resp := &authv1.DevTokenResponse{Success: true}
+	user, err := h.q.GetUserByEmail(ctx, req.GetEmail())
+	if err != nil {
+		return resp, nil // don't reveal whether the email exists
+	}
+	token, err := newRefreshToken()
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to generate token")
+	}
+	exp := pgtype.Timestamptz{Time: time.Now().Add(24 * time.Hour), Valid: true}
+	if err := h.q.CreateEmailVerification(ctx, db.CreateEmailVerificationParams{
+		TokenHash: hashToken(token), UserID: user.ID, ExpiresAt: exp,
+	}); err != nil {
+		return nil, status.Error(codes.Internal, "failed to create verification")
+	}
+	h.mail.Send(user.Email, "Verify your email", "Your email verification token: "+token)
+	h.auditAs(ctx, user.ID.String(), user.Email, "email.verification_requested", "", "")
+	if !config.IsProduction() {
+		resp.DevToken = token
+	}
+	return resp, nil
+}
+
+func (h *AuthHandler) VerifyEmail(ctx context.Context, req *authv1.TokenRequest) (*authv1.GenericResponse, error) {
+	uid, err := h.q.ConsumeEmailVerification(ctx, hashToken(req.GetToken()))
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid or expired token")
+	}
+	if err := h.q.MarkEmailVerified(ctx, uid); err != nil {
+		return nil, status.Error(codes.Internal, "failed to verify email")
+	}
+	h.auditAs(ctx, uid.String(), "", "email.verified", "", "")
+	return &authv1.GenericResponse{Success: true}, nil
+}
+
+func (h *AuthHandler) RequestPasswordReset(ctx context.Context, req *authv1.EmailRequest) (*authv1.DevTokenResponse, error) {
+	resp := &authv1.DevTokenResponse{Success: true}
+	user, err := h.q.GetUserByEmail(ctx, req.GetEmail())
+	if err != nil {
+		return resp, nil // don't reveal whether the email exists
+	}
+	token, err := newRefreshToken()
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to generate token")
+	}
+	exp := pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true}
+	if err := h.q.CreatePasswordReset(ctx, db.CreatePasswordResetParams{
+		TokenHash: hashToken(token), UserID: user.ID, ExpiresAt: exp,
+	}); err != nil {
+		return nil, status.Error(codes.Internal, "failed to create reset token")
+	}
+	h.mail.Send(user.Email, "Reset your password", "Your password reset token: "+token)
+	h.auditAs(ctx, user.ID.String(), user.Email, "password.reset_requested", "", "")
+	if !config.IsProduction() {
+		resp.DevToken = token
+	}
+	return resp, nil
+}
+
+func (h *AuthHandler) ResetPassword(ctx context.Context, req *authv1.ResetPasswordRequest) (*authv1.GenericResponse, error) {
+	if len(req.GetNewPassword()) < 8 {
+		return nil, status.Error(codes.InvalidArgument, "password must be at least 8 characters")
+	}
+	uid, err := h.q.ConsumePasswordReset(ctx, hashToken(req.GetToken()))
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid or expired token")
+	}
+	hash, err := password.Hash(req.GetNewPassword())
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to hash password")
+	}
+	if err := h.q.UpdatePassword(ctx, db.UpdatePasswordParams{ID: uid, PasswordHash: hash}); err != nil {
+		return nil, status.Error(codes.Internal, "failed to update password")
+	}
+	_ = h.q.RevokeAllUserRefreshTokens(ctx, uid) // force re-login everywhere
+	h.auditAs(ctx, uid.String(), "", "password.reset", "", "")
+	return &authv1.GenericResponse{Success: true}, nil
+}
+
+// ── Audit (v0.2) ────────────────────────────────────────────
+
+func (h *AuthHandler) ListAuditEvents(ctx context.Context, req *authv1.ListAuditEventsRequest) (*authv1.ListAuditEventsResponse, error) {
+	if err := requirePerm(ctx, "audit:read"); err != nil {
+		return nil, err
+	}
+	limit := req.GetLimit()
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := h.q.ListAuditEvents(ctx, limit)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to list audit events")
+	}
+	out := make([]*authv1.AuditEvent, 0, len(rows))
+	for _, e := range rows {
+		created := ""
+		if e.CreatedAt.Valid {
+			created = e.CreatedAt.Time.UTC().Format("2006-01-02T15:04:05Z07:00")
+		}
+		out = append(out, &authv1.AuditEvent{
+			Id: e.ID, ActorId: e.ActorID, ActorEmail: e.ActorEmail,
+			Action: e.Action, Target: e.Target, Detail: e.Detail, CreatedAt: created,
+		})
+	}
+	return &authv1.ListAuditEventsResponse{Events: out}, nil
 }
 
 func isBuiltinRole(name string) bool {

@@ -9,6 +9,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuditEvent struct {
+	ID         int64
+	ActorID    string
+	ActorEmail string
+	Action     string
+	Target     string
+	Detail     string
+	CreatedAt  pgtype.Timestamptz
+}
+
+type EmailVerification struct {
+	TokenHash  string
+	UserID     uuid.UUID
+	ExpiresAt  pgtype.Timestamptz
+	ConsumedAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
+type PasswordReset struct {
+	TokenHash  string
+	UserID     uuid.UUID
+	ExpiresAt  pgtype.Timestamptz
+	ConsumedAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Permission struct {
 	ID          int64
 	Name        string
@@ -42,12 +68,15 @@ type RolePermission struct {
 }
 
 type User struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Status       string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                  uuid.UUID
+	Email               string
+	PasswordHash        string
+	Status              string
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	EmailVerified       bool
+	FailedLoginAttempts int32
+	LockedUntil         pgtype.Timestamptz
 }
 
 type UserRole struct {

@@ -1,0 +1,30 @@
+meta {
+  name: Request Email Verification
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/auth/verify-email/request
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{user_email}}"
+  }
+}
+
+script:post-response {
+  const b = res.getBody();
+  if (b && b.dev_token) bru.setVar("verify_token", b.dev_token);
+}
+
+docs {
+  Public. Outside production the verification token is returned as `dev_token` (saved to `verify_token`).
+}

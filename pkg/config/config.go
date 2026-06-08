@@ -24,6 +24,20 @@ func IsProduction() bool {
 // (defense-in-depth). Empty means enforcement is disabled (local dev).
 func InternalToken() string { return os.Getenv("INTERNAL_SERVICE_TOKEN") }
 
+// ── v0.2 Security+ feature toggles (all default to non-breaking) ─────
+
+// RequireEmailVerification blocks login for unverified users when true.
+func RequireEmailVerification() bool { return os.Getenv("REQUIRE_EMAIL_VERIFICATION") == "true" }
+
+// LoginMaxFailures is the failed-login threshold before lockout (0 disables).
+func LoginMaxFailures() int { return GetenvInt("LOGIN_MAX_FAILURES", 5) }
+
+// LockoutDuration is how long an account stays locked after too many failures.
+func LockoutDuration() time.Duration { return GetenvDuration("LOGIN_LOCKOUT_SECONDS", 900) }
+
+// AuditEnabled controls whether sensitive actions are written to the audit log.
+func AuditEnabled() bool { return Getenv("AUDIT_ENABLED", "true") != "false" }
+
 // ValidateSecurity fails fast on insecure configuration in production.
 func ValidateSecurity() error {
 	if !IsProduction() {

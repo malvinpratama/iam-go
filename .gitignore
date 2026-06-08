@@ -7,3 +7,6 @@ vendor/
 *.local
 .DS_Store
 **/data/
+
+# generated TLS certs (gen-certs.sh)
+deploy/tls/

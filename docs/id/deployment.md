@@ -99,3 +99,13 @@ Postgres hanya dipublish di `127.0.0.1` (localhost), tidak ke luar.
 - **`NetworkPolicy`** Kubernetes bawaan hanya mengizinkan gateway menjangkau
   service auth/user, dan hanya service yang menjangkau Postgres.
 - Endpoint auth **di-rate-limit**; access token **bisa dicabut** via denylist jti (logout).
+### TLS & secret (opsional, default mati)
+
+- **TLS/mTLS** — buat sertifikat lokal dengan `./scripts/gen-certs.sh` (menulis
+  ke `deploy/tls/`). TLS bersifat opt-in (`TLS_ENABLED`); tanpa itu semua jalan
+  plaintext seperti sebelumnya. Untuk produksi pakai cert-manager (ingress) dan
+  TLS/mTLS gRPC antara gateway dan service.
+- **Manajemen secret** — `Secret` K8s bawaan hanya placeholder. Untuk produksi
+  ganti dengan salah satu: **Sealed Secrets** (enkripsi secret ke git),
+  **External Secrets Operator** (sinkron dari secret manager), atau **HashiCorp
+  Vault**. Semua drop-in: nama env var tetap sama, hanya sumber nilainya berbeda.

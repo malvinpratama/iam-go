@@ -19,21 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_Register_FullMethodName         = "/auth.v1.AuthService/Register"
-	AuthService_Login_FullMethodName            = "/auth.v1.AuthService/Login"
-	AuthService_Refresh_FullMethodName          = "/auth.v1.AuthService/Refresh"
-	AuthService_Logout_FullMethodName           = "/auth.v1.AuthService/Logout"
-	AuthService_ValidateToken_FullMethodName    = "/auth.v1.AuthService/ValidateToken"
-	AuthService_DeleteUser_FullMethodName       = "/auth.v1.AuthService/DeleteUser"
-	AuthService_CreateRole_FullMethodName       = "/auth.v1.AuthService/CreateRole"
-	AuthService_UpdateRole_FullMethodName       = "/auth.v1.AuthService/UpdateRole"
-	AuthService_DeleteRole_FullMethodName       = "/auth.v1.AuthService/DeleteRole"
-	AuthService_ListRoles_FullMethodName        = "/auth.v1.AuthService/ListRoles"
-	AuthService_AssignRole_FullMethodName       = "/auth.v1.AuthService/AssignRole"
-	AuthService_RevokeRole_FullMethodName       = "/auth.v1.AuthService/RevokeRole"
-	AuthService_ListPermissions_FullMethodName  = "/auth.v1.AuthService/ListPermissions"
-	AuthService_GrantPermission_FullMethodName  = "/auth.v1.AuthService/GrantPermission"
-	AuthService_RevokePermission_FullMethodName = "/auth.v1.AuthService/RevokePermission"
+	AuthService_Register_FullMethodName                 = "/auth.v1.AuthService/Register"
+	AuthService_Login_FullMethodName                    = "/auth.v1.AuthService/Login"
+	AuthService_Refresh_FullMethodName                  = "/auth.v1.AuthService/Refresh"
+	AuthService_Logout_FullMethodName                   = "/auth.v1.AuthService/Logout"
+	AuthService_ValidateToken_FullMethodName            = "/auth.v1.AuthService/ValidateToken"
+	AuthService_DeleteUser_FullMethodName               = "/auth.v1.AuthService/DeleteUser"
+	AuthService_CreateRole_FullMethodName               = "/auth.v1.AuthService/CreateRole"
+	AuthService_UpdateRole_FullMethodName               = "/auth.v1.AuthService/UpdateRole"
+	AuthService_DeleteRole_FullMethodName               = "/auth.v1.AuthService/DeleteRole"
+	AuthService_ListRoles_FullMethodName                = "/auth.v1.AuthService/ListRoles"
+	AuthService_AssignRole_FullMethodName               = "/auth.v1.AuthService/AssignRole"
+	AuthService_RevokeRole_FullMethodName               = "/auth.v1.AuthService/RevokeRole"
+	AuthService_ListPermissions_FullMethodName          = "/auth.v1.AuthService/ListPermissions"
+	AuthService_GrantPermission_FullMethodName          = "/auth.v1.AuthService/GrantPermission"
+	AuthService_RevokePermission_FullMethodName         = "/auth.v1.AuthService/RevokePermission"
+	AuthService_RequestEmailVerification_FullMethodName = "/auth.v1.AuthService/RequestEmailVerification"
+	AuthService_VerifyEmail_FullMethodName              = "/auth.v1.AuthService/VerifyEmail"
+	AuthService_RequestPasswordReset_FullMethodName     = "/auth.v1.AuthService/RequestPasswordReset"
+	AuthService_ResetPassword_FullMethodName            = "/auth.v1.AuthService/ResetPassword"
+	AuthService_ListAuditEvents_FullMethodName          = "/auth.v1.AuthService/ListAuditEvents"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -61,6 +66,13 @@ type AuthServiceClient interface {
 	ListPermissions(ctx context.Context, in *ListPermissionsRequest, opts ...grpc.CallOption) (*ListPermissionsResponse, error)
 	GrantPermission(ctx context.Context, in *GrantPermissionRequest, opts ...grpc.CallOption) (*GrantPermissionResponse, error)
 	RevokePermission(ctx context.Context, in *RevokePermissionRequest, opts ...grpc.CallOption) (*RevokePermissionResponse, error)
+	// Account recovery & verification (v0.2)
+	RequestEmailVerification(ctx context.Context, in *EmailRequest, opts ...grpc.CallOption) (*DevTokenResponse, error)
+	VerifyEmail(ctx context.Context, in *TokenRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	RequestPasswordReset(ctx context.Context, in *EmailRequest, opts ...grpc.CallOption) (*DevTokenResponse, error)
+	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	// Audit log (v0.2)
+	ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error)
 }
 
 type authServiceClient struct {
@@ -221,6 +233,56 @@ func (c *authServiceClient) RevokePermission(ctx context.Context, in *RevokePerm
 	return out, nil
 }
 
+func (c *authServiceClient) RequestEmailVerification(ctx context.Context, in *EmailRequest, opts ...grpc.CallOption) (*DevTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DevTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_RequestEmailVerification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) VerifyEmail(ctx context.Context, in *TokenRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AuthService_VerifyEmail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RequestPasswordReset(ctx context.Context, in *EmailRequest, opts ...grpc.CallOption) (*DevTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DevTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_RequestPasswordReset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AuthService_ResetPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuditEventsResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -246,6 +308,13 @@ type AuthServiceServer interface {
 	ListPermissions(context.Context, *ListPermissionsRequest) (*ListPermissionsResponse, error)
 	GrantPermission(context.Context, *GrantPermissionRequest) (*GrantPermissionResponse, error)
 	RevokePermission(context.Context, *RevokePermissionRequest) (*RevokePermissionResponse, error)
+	// Account recovery & verification (v0.2)
+	RequestEmailVerification(context.Context, *EmailRequest) (*DevTokenResponse, error)
+	VerifyEmail(context.Context, *TokenRequest) (*GenericResponse, error)
+	RequestPasswordReset(context.Context, *EmailRequest) (*DevTokenResponse, error)
+	ResetPassword(context.Context, *ResetPasswordRequest) (*GenericResponse, error)
+	// Audit log (v0.2)
+	ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -300,6 +369,21 @@ func (UnimplementedAuthServiceServer) GrantPermission(context.Context, *GrantPer
 }
 func (UnimplementedAuthServiceServer) RevokePermission(context.Context, *RevokePermissionRequest) (*RevokePermissionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RevokePermission not implemented")
+}
+func (UnimplementedAuthServiceServer) RequestEmailVerification(context.Context, *EmailRequest) (*DevTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestEmailVerification not implemented")
+}
+func (UnimplementedAuthServiceServer) VerifyEmail(context.Context, *TokenRequest) (*GenericResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifyEmail not implemented")
+}
+func (UnimplementedAuthServiceServer) RequestPasswordReset(context.Context, *EmailRequest) (*DevTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestPasswordReset not implemented")
+}
+func (UnimplementedAuthServiceServer) ResetPassword(context.Context, *ResetPasswordRequest) (*GenericResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResetPassword not implemented")
+}
+func (UnimplementedAuthServiceServer) ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAuditEvents not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -592,6 +676,96 @@ func _AuthService_RevokePermission_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_RequestEmailVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RequestEmailVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RequestEmailVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RequestEmailVerification(ctx, req.(*EmailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_VerifyEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).VerifyEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_VerifyEmail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).VerifyEmail(ctx, req.(*TokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RequestPasswordReset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RequestPasswordReset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RequestPasswordReset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RequestPasswordReset(ctx, req.(*EmailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ResetPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ResetPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ResetPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ResetPassword(ctx, req.(*ResetPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListAuditEvents(ctx, req.(*ListAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -658,6 +832,26 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RevokePermission",
 			Handler:    _AuthService_RevokePermission_Handler,
+		},
+		{
+			MethodName: "RequestEmailVerification",
+			Handler:    _AuthService_RequestEmailVerification_Handler,
+		},
+		{
+			MethodName: "VerifyEmail",
+			Handler:    _AuthService_VerifyEmail_Handler,
+		},
+		{
+			MethodName: "RequestPasswordReset",
+			Handler:    _AuthService_RequestPasswordReset_Handler,
+		},
+		{
+			MethodName: "ResetPassword",
+			Handler:    _AuthService_ResetPassword_Handler,
+		},
+		{
+			MethodName: "ListAuditEvents",
+			Handler:    _AuthService_ListAuditEvents_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

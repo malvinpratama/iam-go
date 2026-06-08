@@ -15,7 +15,9 @@
     { "key": "refresh_token", "value": "", "type": "string" },
     { "key": "token_type", "value": "Bearer", "type": "string" },
     { "key": "admin_access_token", "value": "", "type": "string" },
-    { "key": "user_id", "value": "", "type": "string" }
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "reset_token", "value": "", "type": "string" },
+    { "key": "verify_token", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -324,6 +326,72 @@
             "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
             "url": { "raw": "{{base_url}}/users/{{user_id}}/roles/admin", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}", "roles", "admin"] },
             "description": "Requires `role:assign` (admin). Removes the named role (here `admin`) from `{{user_id}}`. Change the last path segment to revoke a different role."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account & Audit",
+      "item": [
+        {
+          "name": "Request Password Reset",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const b = pm.response.json();",
+              "if (b.dev_token) { pm.collectionVariables.set('reset_token', b.dev_token); }"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{user_email}}\"\n}" },
+            "url": { "raw": "{{base_url}}/auth/password-reset/request", "host": ["{{base_url}}"], "path": ["auth", "password-reset", "request"] },
+            "description": "Public. Returns `dev_token` outside production (saved to `reset_token`); in production the token is emailed."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"newpass12345\"\n}" },
+            "url": { "raw": "{{base_url}}/auth/password-reset", "host": ["{{base_url}}"], "path": ["auth", "password-reset"] },
+            "description": "Consumes the reset token, sets a new password, and revokes all of the user's refresh tokens."
+          }
+        },
+        {
+          "name": "Request Email Verification",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const b = pm.response.json();",
+              "if (b.dev_token) { pm.collectionVariables.set('verify_token', b.dev_token); }"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{user_email}}\"\n}" },
+            "url": { "raw": "{{base_url}}/auth/verify-email/request", "host": ["{{base_url}}"], "path": ["auth", "verify-email", "request"] },
+            "description": "Public. Returns `dev_token` outside production (saved to `verify_token`)."
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verify_token}}\"\n}" },
+            "url": { "raw": "{{base_url}}/auth/verify-email", "host": ["{{base_url}}"], "path": ["auth", "verify-email"] },
+            "description": "Consumes the token and marks the user's email as verified."
+          }
+        },
+        {
+          "name": "List Audit Log (needs audit:read)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{token_type}} {{admin_access_token}}" }],
+            "url": { "raw": "{{base_url}}/audit?limit=20", "host": ["{{base_url}}"], "path": ["audit"], "query": [{ "key": "limit", "value": "20" }] },
+            "description": "Requires `audit:read` (admin). Lists recent sensitive actions."
           }
         }
       ]

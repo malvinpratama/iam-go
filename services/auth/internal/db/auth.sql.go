@@ -28,6 +28,62 @@ func (q *Queries) AssignRoleToUser(ctx context.Context, arg AssignRoleToUserPara
 	return err
 }
 
+const consumeEmailVerification = `-- name: ConsumeEmailVerification :one
+UPDATE email_verifications SET consumed_at = now()
+WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+RETURNING user_id
+`
+
+func (q *Queries) ConsumeEmailVerification(ctx context.Context, tokenHash string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, consumeEmailVerification, tokenHash)
+	var user_id uuid.UUID
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const consumePasswordReset = `-- name: ConsumePasswordReset :one
+UPDATE password_resets SET consumed_at = now()
+WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+RETURNING user_id
+`
+
+func (q *Queries) ConsumePasswordReset(ctx context.Context, tokenHash string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, consumePasswordReset, tokenHash)
+	var user_id uuid.UUID
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const createEmailVerification = `-- name: CreateEmailVerification :exec
+INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES ($1, $2, $3)
+`
+
+type CreateEmailVerificationParams struct {
+	TokenHash string
+	UserID    uuid.UUID
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateEmailVerification(ctx context.Context, arg CreateEmailVerificationParams) error {
+	_, err := q.db.Exec(ctx, createEmailVerification, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	return err
+}
+
+const createPasswordReset = `-- name: CreatePasswordReset :exec
+INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3)
+`
+
+type CreatePasswordResetParams struct {
+	TokenHash string
+	UserID    uuid.UUID
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) error {
+	_, err := q.db.Exec(ctx, createPasswordReset, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	return err
+}
+
 const createRefreshToken = `-- name: CreateRefreshToken :one
 INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
 VALUES ($1, $2, $3)
@@ -163,19 +219,34 @@ func (q *Queries) GetRoleByName(ctx context.Context, name string) (Role, error) 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, status, created_at, updated_at
+SELECT id, email, password_hash, status, email_verified, failed_login_attempts, locked_until, created_at, updated_at
 FROM users
 WHERE email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	ID                  uuid.UUID
+	Email               string
+	PasswordHash        string
+	Status              string
+	EmailVerified       bool
+	FailedLoginAttempts int32
+	LockedUntil         pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Status,
+		&i.EmailVerified,
+		&i.FailedLoginAttempts,
+		&i.LockedUntil,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -183,19 +254,34 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, status, created_at, updated_at
+SELECT id, email, password_hash, status, email_verified, failed_login_attempts, locked_until, created_at, updated_at
 FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+type GetUserByIDRow struct {
+	ID                  uuid.UUID
+	Email               string
+	PasswordHash        string
+	Status              string
+	EmailVerified       bool
+	FailedLoginAttempts int32
+	LockedUntil         pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Status,
+		&i.EmailVerified,
+		&i.FailedLoginAttempts,
+		&i.LockedUntil,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -277,6 +363,43 @@ func (q *Queries) GrantPermissionToRole(ctx context.Context, arg GrantPermission
 	return err
 }
 
+const incrementLoginFailure = `-- name: IncrementLoginFailure :one
+UPDATE users SET failed_login_attempts = failed_login_attempts + 1
+WHERE id = $1
+RETURNING failed_login_attempts
+`
+
+func (q *Queries) IncrementLoginFailure(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementLoginFailure, id)
+	var failed_login_attempts int32
+	err := row.Scan(&failed_login_attempts)
+	return failed_login_attempts, err
+}
+
+const insertAuditEvent = `-- name: InsertAuditEvent :exec
+INSERT INTO audit_events (actor_id, actor_email, action, target, detail)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type InsertAuditEventParams struct {
+	ActorID    string
+	ActorEmail string
+	Action     string
+	Target     string
+	Detail     string
+}
+
+func (q *Queries) InsertAuditEvent(ctx context.Context, arg InsertAuditEventParams) error {
+	_, err := q.db.Exec(ctx, insertAuditEvent,
+		arg.ActorID,
+		arg.ActorEmail,
+		arg.Action,
+		arg.Target,
+		arg.Detail,
+	)
+	return err
+}
+
 const isTokenRevoked = `-- name: IsTokenRevoked :one
 SELECT EXISTS(SELECT 1 FROM revoked_tokens WHERE jti = $1)
 `
@@ -286,6 +409,41 @@ func (q *Queries) IsTokenRevoked(ctx context.Context, jti string) (bool, error) 
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const listAuditEvents = `-- name: ListAuditEvents :many
+SELECT id, actor_id, actor_email, action, target, detail, created_at
+FROM audit_events
+ORDER BY id DESC
+LIMIT $1
+`
+
+func (q *Queries) ListAuditEvents(ctx context.Context, limit int32) ([]AuditEvent, error) {
+	rows, err := q.db.Query(ctx, listAuditEvents, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuditEvent
+	for rows.Next() {
+		var i AuditEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorID,
+			&i.ActorEmail,
+			&i.Action,
+			&i.Target,
+			&i.Detail,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPermissions = `-- name: ListPermissions :many
@@ -368,6 +526,38 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 	return items, nil
 }
 
+const lockUser = `-- name: LockUser :exec
+UPDATE users SET locked_until = $2, failed_login_attempts = 0 WHERE id = $1
+`
+
+type LockUserParams struct {
+	ID          uuid.UUID
+	LockedUntil pgtype.Timestamptz
+}
+
+func (q *Queries) LockUser(ctx context.Context, arg LockUserParams) error {
+	_, err := q.db.Exec(ctx, lockUser, arg.ID, arg.LockedUntil)
+	return err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :exec
+UPDATE users SET email_verified = true WHERE id = $1
+`
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markEmailVerified, id)
+	return err
+}
+
+const resetLoginState = `-- name: ResetLoginState :exec
+UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1
+`
+
+func (q *Queries) ResetLoginState(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, resetLoginState, id)
+	return err
+}
+
 const revokeAccessJTI = `-- name: RevokeAccessJTI :exec
 INSERT INTO revoked_tokens (jti, expires_at)
 VALUES ($1, $2)
@@ -381,6 +571,15 @@ type RevokeAccessJTIParams struct {
 
 func (q *Queries) RevokeAccessJTI(ctx context.Context, arg RevokeAccessJTIParams) error {
 	_, err := q.db.Exec(ctx, revokeAccessJTI, arg.Jti, arg.ExpiresAt)
+	return err
+}
+
+const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAllUserRefreshTokens, userID)
 	return err
 }
 
@@ -424,6 +623,20 @@ type RevokeRoleFromUserParams struct {
 
 func (q *Queries) RevokeRoleFromUser(ctx context.Context, arg RevokeRoleFromUserParams) error {
 	_, err := q.db.Exec(ctx, revokeRoleFromUser, arg.UserID, arg.Name)
+	return err
+}
+
+const updatePassword = `-- name: UpdatePassword :exec
+UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1
+`
+
+type UpdatePasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
+	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
 	return err
 }
 
