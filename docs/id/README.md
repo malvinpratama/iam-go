@@ -35,4 +35,4 @@ client ──REST──▶ Gateway (Gin) ──gRPC──▶ Auth Service ──
                      └ validates JWT, resolves permissions, enforces RBAC per route
 ```
 
-Implementasi Rust paralel berada di [`../../../iam-rust`](../../../iam-rust).
+Implementasi Rust paralel berada di iam-rust (https://github.com/malvinpratama/iam-rust).
