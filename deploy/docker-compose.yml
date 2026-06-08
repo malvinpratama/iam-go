@@ -1,5 +1,8 @@
 name: iam-go
 
+# Umbrella deployment: pulls the independently-built service images from GHCR.
+# Override the tag with IMAGE_TAG (e.g. IMAGE_TAG=dev for locally-built images).
+
 services:
   # ── Per-service Postgres instances (one DB per service, isolated) ──────────
   postgres-auth:
@@ -11,7 +14,7 @@ services:
     volumes:
       - pgdata-auth:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5432:5432"   # localhost only
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${AUTH_POSTGRES_DB:-auth_db}"]
       interval: 3s
@@ -27,22 +30,22 @@ services:
     volumes:
       - pgdata-user:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5433:5432"   # localhost only (host 5433 → container 5432)
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${USER_POSTGRES_DB:-user_db}"]
       interval: 3s
       timeout: 3s
       retries: 15
 
-  # ── NATS JetStream (async events: outbox relay → user-service consumer) ────
+  # ── NATS JetStream (async events) ──────────────────────────────────────────
   nats:
     image: nats:2-alpine
     command: ["-js", "-sd", "/data", "-m", "8222"]
     volumes:
       - natsdata:/data
     ports:
-      - "127.0.0.1:4222:4222"   # client (localhost only)
-      - "127.0.0.1:8222:8222"   # monitoring
+      - "127.0.0.1:4222:4222"
+      - "127.0.0.1:8222:8222"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:8222/healthz || exit 1"]
       interval: 3s
@@ -50,11 +53,7 @@ services:
       retries: 15
 
   auth:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      args:
-        SERVICE: auth
+    image: ghcr.io/malvinpratama/iam-go-auth:${IMAGE_TAG:-latest}
     environment:
       AUTH_DATABASE_URL: ${AUTH_DATABASE_URL}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
@@ -79,11 +78,7 @@ services:
         condition: service_healthy
 
   user:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      args:
-        SERVICE: user
+    image: ghcr.io/malvinpratama/iam-go-user:${IMAGE_TAG:-latest}
     environment:
       USER_DATABASE_URL: ${USER_DATABASE_URL}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
@@ -98,11 +93,7 @@ services:
         condition: service_healthy
 
   gateway:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      args:
-        SERVICE: gateway
+    image: ghcr.io/malvinpratama/iam-go-gateway:${IMAGE_TAG:-latest}
     environment:
       GATEWAY_HTTP_PORT: ${GATEWAY_HTTP_PORT:-8080}
       AUTH_GRPC_ADDR: ${AUTH_GRPC_ADDR:-auth:50051}

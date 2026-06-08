@@ -1,37 +1,10 @@
-GOBIN := $(shell go env GOPATH)/bin
-export PATH := $(GOBIN):$(PATH)
+.PHONY: up down logs smoke k8s
 
-.PHONY: tools proto sqlc build test vet run up down logs smoke
-
-## Install codegen tools (buf, protoc plugins, sqlc)
-tools:
-	go install github.com/bufbuild/buf/cmd/buf@latest
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-
-## Generate gRPC stubs from proto
-proto:
-	buf generate
-
-## Generate sqlc db code for each service
-sqlc:
-	cd services/auth && sqlc generate
-	cd services/user && sqlc generate
-
-build:
-	go build ./...
-
-vet:
-	go vet ./...
-
-test:
-	go test ./...
-
-## Run the full stack via docker-compose
+## Run the full stack via docker-compose (pulls service images from GHCR).
+## Override the tag with IMAGE_TAG (e.g. `make up IMAGE_TAG=dev`).
 up:
 	cd deploy && [ -f .env ] || cp .env.example .env
-	cd deploy && docker compose up --build -d
+	cd deploy && docker compose up -d
 
 down:
 	cd deploy && docker compose down -v
@@ -42,3 +15,7 @@ logs:
 ## End-to-end smoke test against the running gateway
 smoke:
 	./scripts/smoke.sh http://localhost:8080
+
+## Render the Kubernetes manifests
+k8s:
+	kubectl kustomize deploy/k8s
