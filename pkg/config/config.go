@@ -24,6 +24,11 @@ func IsProduction() bool {
 // (defense-in-depth). Empty means enforcement is disabled (local dev).
 func InternalToken() string { return os.Getenv("INTERNAL_SERVICE_TOKEN") }
 
+// NatsURL is the NATS JetStream connection string for async inter-service
+// events. Empty disables the event publisher/consumer (the gateway's lazy
+// profile healing remains as a fallback), keeping the broker optional.
+func NatsURL() string { return os.Getenv("NATS_URL") }
+
 // ── v0.2 Security+ feature toggles (all default to non-breaking) ─────
 
 // RequireEmailVerification blocks login for unverified users when true.

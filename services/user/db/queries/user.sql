@@ -32,3 +32,9 @@ LIMIT $2 OFFSET $3;
 SELECT count(*)
 FROM profiles
 WHERE ($1::text = '' OR display_name ILIKE '%' || $1 || '%');
+
+-- name: UpsertProfile :exec
+-- Idempotent profile creation for the event consumer (at-least-once delivery).
+INSERT INTO profiles (user_id, display_name)
+VALUES ($1, $2)
+ON CONFLICT (user_id) DO NOTHING;

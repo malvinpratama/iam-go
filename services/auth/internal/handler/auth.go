@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +19,7 @@ import (
 	authv1 "github.com/malvin/iam-go/gen/auth/v1"
 	"github.com/malvin/iam-go/pkg/config"
 	"github.com/malvin/iam-go/pkg/email"
+	"github.com/malvin/iam-go/pkg/events"
 	"github.com/malvin/iam-go/pkg/grpcutil"
 	"github.com/malvin/iam-go/pkg/jwt"
 	"github.com/malvin/iam-go/pkg/password"
@@ -93,6 +96,20 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 	}
 	if err := qtx.AssignRoleToUser(ctx, db.AssignRoleToUserParams{UserID: user.ID, Name: defaultRole}); err != nil {
 		return nil, status.Error(codes.Internal, "failed to assign default role")
+	}
+	// Enqueue a UserRegistered event in the SAME transaction (outbox pattern).
+	// The user service creates the matching profile asynchronously; nothing
+	// here calls the user service directly.
+	payload, err := json.Marshal(events.UserRegistered{
+		UserID: user.ID.String(), Email: user.Email, DisplayName: displayFromEmail(user.Email),
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to encode event")
+	}
+	if err := qtx.InsertOutbox(ctx, db.InsertOutboxParams{
+		AggregateID: user.ID, EventType: events.TypeUserRegistered, Payload: payload,
+	}); err != nil {
+		return nil, status.Error(codes.Internal, "failed to enqueue event")
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, status.Error(codes.Internal, "tx commit failed")
@@ -231,11 +248,40 @@ func (h *AuthHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUserRequ
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid user id")
 	}
-	if err := h.q.DeleteUser(ctx, userID); err != nil {
+	// Delete the identity and enqueue a UserDeleted event in one transaction;
+	// the user service drops the matching profile asynchronously.
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "tx begin failed")
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.q.WithTx(tx)
+	if err := qtx.DeleteUser(ctx, userID); err != nil {
 		return nil, status.Error(codes.Internal, "failed to delete user")
+	}
+	payload, err := json.Marshal(events.UserDeleted{UserID: userID.String()})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to encode event")
+	}
+	if err := qtx.InsertOutbox(ctx, db.InsertOutboxParams{
+		AggregateID: userID, EventType: events.TypeUserDeleted, Payload: payload,
+	}); err != nil {
+		return nil, status.Error(codes.Internal, "failed to enqueue event")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, status.Error(codes.Internal, "tx commit failed")
 	}
 	h.audit(ctx, "user.delete", req.GetUserId(), "")
 	return &authv1.DeleteUserResponse{Success: true}, nil
+}
+
+// displayFromEmail derives a default display name from the local part of an
+// email (the same rule the gateway uses when lazily healing a missing profile).
+func displayFromEmail(emailAddr string) string {
+	if i := strings.Index(emailAddr, "@"); i > 0 {
+		return emailAddr[:i]
+	}
+	return emailAddr
 }
 
 // ── RBAC management ─────────────────────────────────────────

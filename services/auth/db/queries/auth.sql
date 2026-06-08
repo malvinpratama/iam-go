@@ -156,3 +156,19 @@ ON CONFLICT DO NOTHING;
 DELETE FROM role_permissions rp
 WHERE rp.role_id = (SELECT r.id FROM roles r WHERE r.name = $1)
   AND rp.permission_id = (SELECT p.id FROM permissions p WHERE p.name = $2);
+
+-- ── Transactional outbox ────────────────────────────────────
+
+-- name: InsertOutbox :exec
+INSERT INTO outbox (aggregate_id, event_type, payload)
+VALUES ($1, $2, $3);
+
+-- name: FetchUnpublishedOutbox :many
+SELECT id, aggregate_id, event_type, payload
+FROM outbox
+WHERE published_at IS NULL
+ORDER BY created_at
+LIMIT $1;
+
+-- name: MarkOutboxPublished :exec
+UPDATE outbox SET published_at = now() WHERE id = $1;

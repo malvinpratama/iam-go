@@ -16,10 +16,13 @@ import (
 	userv1 "github.com/malvin/iam-go/gen/user/v1"
 	"github.com/malvin/iam-go/pkg/config"
 	"github.com/malvin/iam-go/pkg/db"
+	"github.com/malvin/iam-go/pkg/events"
 	"github.com/malvin/iam-go/pkg/interceptor"
 	"github.com/malvin/iam-go/pkg/logger"
 	"github.com/malvin/iam-go/pkg/migrate"
 	user "github.com/malvin/iam-go/services/user"
+	"github.com/malvin/iam-go/services/user/internal/consumer"
+	userdb "github.com/malvin/iam-go/services/user/internal/db"
 	"github.com/malvin/iam-go/services/user/internal/handler"
 )
 
@@ -48,6 +51,28 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+
+	// Subscribe to auth lifecycle events to keep profiles in sync. Optional —
+	// without NATS_URL profiles are created lazily on first read instead.
+	if url := config.NatsURL(); url != "" {
+		nc, js, err := events.Connect(url)
+		if err != nil {
+			log.Error("connect nats", "err", err)
+			os.Exit(1)
+		}
+		defer nc.Close()
+		if err := events.EnsureStream(js); err != nil {
+			log.Error("ensure stream", "err", err)
+			os.Exit(1)
+		}
+		if err := consumer.New(userdb.New(pool), js, log).Start(ctx); err != nil {
+			log.Error("start consumer", "err", err)
+			os.Exit(1)
+		}
+		log.Info("event consumer connected", "nats", url)
+	} else {
+		log.Warn("NATS_URL not set — event consumer disabled")
+	}
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

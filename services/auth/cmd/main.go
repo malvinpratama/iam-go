@@ -17,12 +17,15 @@ import (
 	"github.com/malvin/iam-go/pkg/config"
 	"github.com/malvin/iam-go/pkg/db"
 	"github.com/malvin/iam-go/pkg/email"
+	"github.com/malvin/iam-go/pkg/events"
 	"github.com/malvin/iam-go/pkg/interceptor"
 	"github.com/malvin/iam-go/pkg/jwt"
 	"github.com/malvin/iam-go/pkg/logger"
 	"github.com/malvin/iam-go/pkg/migrate"
 	auth "github.com/malvin/iam-go/services/auth"
+	authdb "github.com/malvin/iam-go/services/auth/internal/db"
 	"github.com/malvin/iam-go/services/auth/internal/handler"
+	"github.com/malvin/iam-go/services/auth/internal/outbox"
 )
 
 func main() {
@@ -66,6 +69,26 @@ func main() {
 
 	jwtCfg := config.LoadJWT()
 	h := handler.New(pool, jwt.NewManager(jwtCfg), jwtCfg.RefreshTTL, email.NewLogSender(log))
+
+	// Outbox relay: drain pending domain events to NATS JetStream. Optional —
+	// without NATS_URL the events are still recorded; the gateway's lazy profile
+	// healing keeps the system working.
+	if url := config.NatsURL(); url != "" {
+		nc, js, err := events.Connect(url)
+		if err != nil {
+			log.Error("connect nats", "err", err)
+			os.Exit(1)
+		}
+		defer nc.Close()
+		if err := events.EnsureStream(js); err != nil {
+			log.Error("ensure stream", "err", err)
+			os.Exit(1)
+		}
+		go outbox.NewRelay(authdb.New(pool), js, log).Run(ctx)
+		log.Info("outbox relay started", "nats", url)
+	} else {
+		log.Warn("NATS_URL not set — event publishing disabled")
+	}
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

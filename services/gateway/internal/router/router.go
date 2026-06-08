@@ -85,15 +85,10 @@ func (h *handlers) register(c *gin.Context) {
 		writeGRPCError(c, err)
 		return
 	}
-	// Orchestrate profile creation in the User service.
-	display := body.Email
-	if i := strings.Index(body.Email, "@"); i > 0 {
-		display = body.Email[:i]
-	}
-	if _, err := h.c.User.CreateProfile(c.Request.Context(), &userv1.CreateProfileRequest{UserId: reg.GetUserId(), DisplayName: display}); err != nil {
-		writeGRPCError(c, err)
-		return
-	}
+	// Profile creation is now driven asynchronously by a UserRegistered event
+	// (transactional outbox in auth → NATS → user service). The gateway no
+	// longer calls the user service here; GET /users/me heals lazily if a read
+	// arrives before the event is processed.
 	c.JSON(http.StatusCreated, gin.H{"user_id": reg.GetUserId(), "email": reg.GetEmail()})
 }
 
@@ -370,12 +365,9 @@ func (h *handlers) updateUser(c *gin.Context) {
 
 func (h *handlers) deleteUser(c *gin.Context) {
 	target := c.Param("id")
-	// Delete the identity (credentials, roles, refresh tokens) AND the profile.
+	// Delete the identity (credentials, roles, refresh tokens). The matching
+	// profile is dropped asynchronously via a UserDeleted event.
 	if _, err := h.c.Auth.DeleteUser(forward(c), &authv1.DeleteUserRequest{UserId: target}); err != nil {
-		writeGRPCError(c, err)
-		return
-	}
-	if _, err := h.c.User.DeleteProfile(forward(c), &userv1.DeleteProfileRequest{UserId: target}); err != nil {
 		writeGRPCError(c, err)
 		return
 	}
