@@ -16,6 +16,7 @@ import (
 	authv1 "github.com/malvin/iam-go/gen/auth/v1"
 	"github.com/malvin/iam-go/pkg/config"
 	"github.com/malvin/iam-go/pkg/db"
+	"github.com/malvin/iam-go/pkg/email"
 	"github.com/malvin/iam-go/pkg/interceptor"
 	"github.com/malvin/iam-go/pkg/jwt"
 	"github.com/malvin/iam-go/pkg/logger"
@@ -64,7 +65,7 @@ func main() {
 	}
 
 	jwtCfg := config.LoadJWT()
-	h := handler.New(pool, jwt.NewManager(jwtCfg), jwtCfg.RefreshTTL)
+	h := handler.New(pool, jwt.NewManager(jwtCfg), jwtCfg.RefreshTTL, email.NewLogSender(log))
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

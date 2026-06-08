@@ -18,14 +18,14 @@ both to keep parity. Legend: 🟢 done · 🔜 planned · 🔮 future · effort 
   access-token revocation (jti denylist), constant-time login, per-IP rate
   limiting, body-size limit, startup secret guards.
 
-## 🔜 v0.2 — Security+
+## 🟢 v0.2 — Security+ (mostly shipped)
 
-- 🔜 **TLS/mTLS** everywhere (ingress, gateway↔service gRPC, Postgres SSL). **M**
-- 🔜 **Refresh-token reuse detection** → revoke the whole session family. **S**
-- 🔜 **Audit log** for sensitive actions (role/permission/user changes). **M**
-- 🔜 **Per-account lockout** + exponential backoff (complements IP rate limit). **S**
-- 🔜 **Email verification** + **password reset** (single-use tokens). **M**
-- 🔜 Secrets via Vault / Sealed Secrets in K8s. **M**
+- 🟢 **Refresh-token reuse detection** → revokes the whole session family. **S**
+- 🟢 **Audit log** for sensitive actions, readable at `GET /audit`. **M**
+- 🟢 **Per-account lockout** after N failed logins (configurable). **S**
+- 🟢 **Email verification** + **password reset** (single-use tokens; dev returns the token, prod emails it). **M**
+- 🟡 **TLS/mTLS** — opt-in cert generator (`scripts/gen-certs.sh`) + docs; wire per deployment. **M**
+- 🟡 **Secrets via Vault / Sealed Secrets** — documented opt-in (default uses K8s Secret). **M**
 
 ## 🔜 v0.3 — Quality & observability
 
@@ -80,14 +80,14 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🔜 diren
   pencabutan access token (denylist jti), login constant-time, rate-limit per IP,
   batas ukuran body, guard secret saat startup.
 
-## 🔜 v0.2 — Keamanan lanjutan
+## 🟢 v0.2 — Keamanan lanjutan (sebagian besar rilis)
 
-- 🔜 **TLS/mTLS** di semua lapis (ingress, gRPC gateway↔service, Postgres SSL). **M**
-- 🔜 **Deteksi reuse refresh-token** → cabut seluruh sesi terkait. **S**
-- 🔜 **Audit log** untuk aksi sensitif (perubahan role/permission/user). **M**
-- 🔜 **Lockout per-akun** + backoff eksponensial. **S**
-- 🔜 **Verifikasi email** + **reset password** (token sekali pakai). **M**
-- 🔜 Secret via Vault / Sealed Secrets di K8s. **M**
+- 🟢 **Deteksi reuse refresh-token** → cabut seluruh sesi terkait. **S**
+- 🟢 **Audit log** aksi sensitif, dibaca via `GET /audit`. **M**
+- 🟢 **Lockout per-akun** setelah N login gagal (bisa dikonfigurasi). **S**
+- 🟢 **Verifikasi email** + **reset password** (token sekali pakai; dev mengembalikan token, prod via email). **M**
+- 🟡 **TLS/mTLS** — generator sertifikat opt-in (`scripts/gen-certs.sh`) + docs; aktifkan per deployment. **M**
+- 🟡 **Secret via Vault / Sealed Secrets** — opt-in terdokumentasi (default pakai K8s Secret). **M**
 
 ## 🔜 v0.3 — Kualitas & observability
 

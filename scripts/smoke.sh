@@ -106,5 +106,39 @@ check "admin deletes user" 200 "$CODE"
 req POST /auth/login "{\"email\":\"$VICTIM_EMAIL\",\"password\":\"victimpass123\"}"
 check "deleted user cannot log in" 401 "$CODE"
 
+# ── v0.2 Security+ ──────────────────────────────────────────
+V2_EMAIL="zoe+$RANDOM@iam.local"
+req POST /auth/register "{\"email\":\"$V2_EMAIL\",\"password\":\"zoepass123\"}"
+check "v0.2 register" 201 "$CODE"
+
+# 14) Password reset: request -> reset -> login with new password
+req POST /auth/password-reset/request "{\"email\":\"$V2_EMAIL\"}"
+check "password reset requested" 200 "$CODE"
+RESET_TOKEN=$(json "$RESP" dev_token)
+req POST /auth/password-reset "{\"token\":\"$RESET_TOKEN\",\"new_password\":\"zoenewpass123\"}"
+check "password reset applied" 200 "$CODE"
+req POST /auth/login "{\"email\":\"$V2_EMAIL\",\"password\":\"zoenewpass123\"}"
+check "login with new password" 200 "$CODE"
+req POST /auth/login "{\"email\":\"$V2_EMAIL\",\"password\":\"zoepass123\"}"
+check "old password rejected after reset" 401 "$CODE"
+
+# 15) Email verification: request -> verify
+req POST /auth/verify-email/request "{\"email\":\"$V2_EMAIL\"}"
+check "email verification requested" 200 "$CODE"
+VERIFY_TOKEN=$(json "$RESP" dev_token)
+req POST /auth/verify-email "{\"token\":\"$VERIFY_TOKEN\"}"
+check "email verified" 200 "$CODE"
+
+# 16) Account lockout after repeated failures
+LOCK_EMAIL="lock+$RANDOM@iam.local"
+req POST /auth/register "{\"email\":\"$LOCK_EMAIL\",\"password\":\"lockpass123\"}"
+for _ in 1 2 3 4 5; do req POST /auth/login "{\"email\":\"$LOCK_EMAIL\",\"password\":\"WRONG\"}"; done
+req POST /auth/login "{\"email\":\"$LOCK_EMAIL\",\"password\":\"lockpass123\"}"
+check "account locked after 5 failures" 401 "$CODE"
+
+# 17) Audit log readable by admin
+req GET "/audit?limit=5" "" "$ADMIN_ACCESS"
+check "admin reads audit log" 200 "$CODE"
+
 echo "== $pass passed, $fail failed =="
 [ "$fail" -eq 0 ]

@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added (v0.2 — Security+)
+- **Account recovery**: email verification (`/auth/verify-email/request`,
+  `/auth/verify-email`) and password reset (`/auth/password-reset/request`,
+  `/auth/password-reset`). In non-production the token is returned as `dev_token`;
+  otherwise it is emailed (pluggable sender; default logs the message).
+- **Audit log** of sensitive actions (`audit_events`), readable at `GET /audit`
+  (`audit:read`, admin).
+- **Account lockout**: lock after `LOGIN_MAX_FAILURES` failed logins for
+  `LOGIN_LOCKOUT_SECONDS` (configurable; `0` disables).
+- **Refresh-token reuse detection**: presenting an already-revoked refresh token
+  revokes the user's whole token family.
+- Optional **email-verification gate** on login (`REQUIRE_EMAIL_VERIFICATION`).
+- Opt-in **TLS** cert generator (`scripts/gen-certs.sh`) + production hardening
+  and secrets-management docs (Vault / Sealed Secrets / External Secrets).
+- All toggles default to non-breaking; the existing smoke flow is unchanged.
+
 ### Added
 - Auth service (gRPC): register, login, refresh (with rotation), logout
   (revocation), `ValidateToken`.

@@ -35,6 +35,10 @@ func New(clients *client.Clients) *gin.Engine {
 	r.POST("/auth/register", authLimit, h.register)
 	r.POST("/auth/login", authLimit, h.login)
 	r.POST("/auth/refresh", authLimit, h.refresh)
+	r.POST("/auth/verify-email/request", authLimit, h.requestEmailVerification)
+	r.POST("/auth/verify-email", authLimit, h.verifyEmail)
+	r.POST("/auth/password-reset/request", authLimit, h.requestPasswordReset)
+	r.POST("/auth/password-reset", authLimit, h.resetPassword)
 
 	// Authenticated endpoints.
 	auth := r.Group("/")
@@ -44,6 +48,7 @@ func New(clients *client.Clients) *gin.Engine {
 		auth.GET("/me", h.getIdentity)
 		auth.GET("/users/me", h.getMe)
 		auth.GET("/permissions", middleware.RequirePermission("role:read"), h.listPermissions)
+		auth.GET("/audit", middleware.RequirePermission("audit:read"), h.listAudit)
 		auth.GET("/users/:id", middleware.RequirePermission("user:read"), h.getUser)
 		auth.GET("/users", middleware.RequirePermission("user:read"), h.listUsers)
 		auth.PATCH("/users/:id", h.updateUser) // self or profile:write — checked inline
@@ -149,6 +154,101 @@ func bearerToken(c *gin.Context) string {
 		return strings.TrimSpace(parts[1])
 	}
 	return ""
+}
+
+// ── account recovery & verification (v0.2) ──────────────────
+
+func (h *handlers) requestEmailVerification(c *gin.Context) {
+	var body struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	res, err := h.c.Auth.RequestEmailVerification(c.Request.Context(), &authv1.EmailRequest{Email: body.Email})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, devTokenJSON(res))
+}
+
+func (h *handlers) verifyEmail(c *gin.Context) {
+	var body struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err := h.c.Auth.VerifyEmail(c.Request.Context(), &authv1.TokenRequest{Token: body.Token}); err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *handlers) requestPasswordReset(c *gin.Context) {
+	var body struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	res, err := h.c.Auth.RequestPasswordReset(c.Request.Context(), &authv1.EmailRequest{Email: body.Email})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, devTokenJSON(res))
+}
+
+func (h *handlers) resetPassword(c *gin.Context) {
+	var body struct {
+		Token       string `json:"token" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err := h.c.Auth.ResetPassword(c.Request.Context(), &authv1.ResetPasswordRequest{Token: body.Token, NewPassword: body.NewPassword}); err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func devTokenJSON(res *authv1.DevTokenResponse) gin.H {
+	out := gin.H{"success": res.GetSuccess()}
+	if res.GetDevToken() != "" {
+		out["dev_token"] = res.GetDevToken() // present only in non-production
+	}
+	return out
+}
+
+// ── audit (v0.2) ────────────────────────────────────────────
+
+func (h *handlers) listAudit(c *gin.Context) {
+	var q struct {
+		Limit int32 `form:"limit"`
+	}
+	_ = c.ShouldBindQuery(&q)
+	res, err := h.c.Auth.ListAuditEvents(forward(c), &authv1.ListAuditEventsRequest{Limit: q.Limit})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	events := make([]gin.H, 0, len(res.GetEvents()))
+	for _, e := range res.GetEvents() {
+		events = append(events, gin.H{
+			"id": e.GetId(), "actor_id": e.GetActorId(), "actor_email": e.GetActorEmail(),
+			"action": e.GetAction(), "target": e.GetTarget(), "detail": e.GetDetail(), "created_at": e.GetCreatedAt(),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"events": events})
 }
 
 // ── users ───────────────────────────────────────────────────

@@ -101,3 +101,14 @@ Postgres is published only on `127.0.0.1` (localhost), not externally.
 - Auth endpoints are **rate-limited**; access tokens are **revocable** via the
   jti denylist (logout).
 - The gateway runs in **gin release mode** and gRPC **reflection is disabled** when `APP_ENV=production`.
+### TLS & secrets (optional, off by default)
+
+- **TLS/mTLS** — generate local certs with `./scripts/gen-certs.sh` (writes
+  `deploy/tls/`). TLS is opt-in (`TLS_ENABLED`); without it everything runs
+  plaintext as before. For real deployments use cert-manager (ingress) and
+  gRPC TLS/mTLS between gateway and services.
+- **Secrets management** — the bundled K8s `Secret` is a placeholder. For
+  production, swap it for one of: **Sealed Secrets** (encrypt secrets into git),
+  **External Secrets Operator** (sync from a manager), or **HashiCorp Vault**
+  (Agent Injector / CSI). All are drop-in: keep the same env var names, change
+  only where the values come from. Nothing else needs to change.
