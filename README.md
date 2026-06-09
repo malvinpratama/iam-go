@@ -66,6 +66,13 @@ make smoke              # end-to-end smoke test against http://localhost:8080
 make down               # stop + remove volumes
 ```
 
+**Observability** (started with the stack): distributed traces in **Jaeger**
+([localhost:16686](http://localhost:16686)) — every request is traced gateway →
+auth/user → Postgres (with SQL spans); metrics in **Prometheus**
+([localhost:9090](http://localhost:9090)) and a **Grafana** "IAM Overview"
+dashboard ([localhost:3000](http://localhost:3000)). Requests carry an
+`X-Request-Id` correlated into logs and traces.
+
 A bootstrap admin (`admin@iam.local` / `admin12345`) is created on first boot.
 Then:
 

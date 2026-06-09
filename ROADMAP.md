@@ -31,8 +31,8 @@ both to keep parity. Legend: 🟢 done · 🔜 planned · 🔮 future · effort 
 
 - 🟢 **CI** (GitHub Actions): build, unit tests, and per-service `docker build`
   publishing images to GHCR (shipped per-repo in v0.4). **M**
-- 🔜 **OpenTelemetry** distributed tracing (gateway → auth/user → DB). **M**
-- 🔜 **Prometheus metrics** (`/metrics`) + Grafana dashboard (latency, login
+- 🟢 **OpenTelemetry** distributed tracing (gateway → auth/user → DB, incl. SQL spans). **M**
+- 🟢 **Prometheus metrics** (`/metrics`) + Grafana dashboard (latency, login
   failures, RPS). **M**
 - 🔜 **Integration tests** with testcontainers (Postgres) for repos/handlers. **M**
 - 🔜 **Correlation/request IDs** propagated through gRPC metadata + logs. **S**
@@ -104,8 +104,8 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🔜 diren
 
 - 🟢 **CI** (GitHub Actions): build, unit test, dan `docker build` per service
   yang mem-publish image ke GHCR (rilis per-repo di v0.4). **M**
-- 🔜 **OpenTelemetry** tracing terdistribusi (gateway → auth/user → DB). **M**
-- 🔜 **Prometheus metrics** (`/metrics`) + dashboard Grafana. **M**
+- 🟢 **OpenTelemetry** tracing terdistribusi (gateway → auth/user → DB). **M**
+- 🟢 **Prometheus metrics** (`/metrics`) + dashboard Grafana. **M**
 - 🔜 **Integration test** dengan testcontainers (Postgres). **M**
 - 🔜 **Correlation/request ID** diteruskan lewat metadata gRPC + log. **S**
 - 🔜 Perbaiki N+1 di `ListRoles`. **S**
