@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-09
+
+### Added (v0.5 — Observability)
+- **Distributed tracing** (OpenTelemetry → Jaeger): every request is traced
+  across gateway → auth/user → Postgres, including SQL spans (otelpgx). Optional
+  via `OTEL_EXPORTER_OTLP_ENDPOINT`.
+- **Prometheus metrics**: gateway exposes `/metrics` (HTTP histograms); auth/user
+  expose gRPC metrics on `:9100`. Scraped by a bundled Prometheus.
+- **Grafana** with a provisioned Prometheus datasource and an "IAM Overview"
+  dashboard (request rate, p95 latency, gRPC calls, error rate).
+- **Correlation IDs**: the gateway assigns/propagates `X-Request-Id` end-to-end
+  (HTTP → gRPC metadata) and includes `request_id` + `trace_id` in structured logs.
+- Compose adds `jaeger` (UI :16686), `prometheus` (:9090), `grafana` (:3000).
+
 ## [0.4.0] - 2026-06-09
 
 ### Changed (v0.4 — True microservices)
