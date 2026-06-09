@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-09
+
 ### Changed (v0.4 — True microservices)
 - **Separate repositories per service**: this repo is now the platform/umbrella;
   each service lives in its own repo
