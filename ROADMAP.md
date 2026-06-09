@@ -29,8 +29,8 @@ both to keep parity. Legend: 🟢 done · 🔜 planned · 🔮 future · effort 
 
 ## 🔜 v0.3 — Quality & observability
 
-- 🔜 **CI** (GitHub Actions): build, unit tests, `golangci-lint`/`clippy`,
-  `docker build`, run smoke tests for both stacks on every PR. **M**
+- 🟢 **CI** (GitHub Actions): build, unit tests, and per-service `docker build`
+  publishing images to GHCR (shipped per-repo in v0.4). **M**
 - 🔜 **OpenTelemetry** distributed tracing (gateway → auth/user → DB). **M**
 - 🔜 **Prometheus metrics** (`/metrics`) + Grafana dashboard (latency, login
   failures, RPS). **M**
@@ -38,7 +38,18 @@ both to keep parity. Legend: 🟢 done · 🔜 planned · 🔮 future · effort 
 - 🔜 **Correlation/request IDs** propagated through gRPC metadata + logs. **S**
 - 🔜 Fix `ListRoles` N+1 query. **S**
 
-## 🔮 v0.4 — Features
+## 🟢 v0.4 — True microservices (shipped)
+
+- 🟢 **Separate repository per service** (gateway/auth/user) + shared contracts
+  and libs repos; each built, versioned (semver tags) and deployed independently. **L**
+- 🟢 **One database instance per service** (`postgres-auth`, `postgres-user`). **S**
+- 🟢 **Event-driven** register/delete via a **transactional outbox → NATS
+  JetStream → idempotent consumer** (no synchronous cross-service writes). **L**
+- 🟢 **CI/CD per repo** (GitHub Actions): build/test + service images published
+  to GHCR; the umbrella compose pulls them. **M**
+- 🔮 Compensation saga for permanently-failed profile creation (future). **S**
+
+## 🔮 v0.5 — Features
 
 - 🔮 **OIDC / OAuth2 provider** (discovery, authorization code + PKCE; social
   login). The flagship "wow" feature. **L**
@@ -47,7 +58,7 @@ both to keep parity. Legend: 🟢 done · 🔜 planned · 🔮 future · effort 
 - 🔮 **Soft-delete + restore**, and enforce the `status` field (suspend blocks login). **S**
 - 🔮 Bulk operations (assign role to many users). **S**
 
-## 🔮 v0.5 — Scale & polish
+## 🔮 v0.6 — Scale & polish
 
 - 🔮 **Redis** for the token denylist, rate limiting, and permission cache
   (multi-instance ready). **M**
@@ -91,15 +102,26 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🔜 diren
 
 ## 🔜 v0.3 — Kualitas & observability
 
-- 🔜 **CI** (GitHub Actions): build, unit test, `golangci-lint`/`clippy`,
-  `docker build`, jalankan smoke test kedua stack tiap PR. **M**
+- 🟢 **CI** (GitHub Actions): build, unit test, dan `docker build` per service
+  yang mem-publish image ke GHCR (rilis per-repo di v0.4). **M**
 - 🔜 **OpenTelemetry** tracing terdistribusi (gateway → auth/user → DB). **M**
 - 🔜 **Prometheus metrics** (`/metrics`) + dashboard Grafana. **M**
 - 🔜 **Integration test** dengan testcontainers (Postgres). **M**
 - 🔜 **Correlation/request ID** diteruskan lewat metadata gRPC + log. **S**
 - 🔜 Perbaiki N+1 di `ListRoles`. **S**
 
-## 🔮 v0.4 — Fitur
+## 🟢 v0.4 — True microservices (sudah rilis)
+
+- 🟢 **Repo terpisah per service** (gateway/auth/user) + repo contracts & libs
+  bersama; tiap repo di-build, di-versioning (tag semver), dan di-deploy independen. **L**
+- 🟢 **Satu instance database per service** (`postgres-auth`, `postgres-user`). **S**
+- 🟢 **Event-driven** register/delete lewat **outbox transaksional → NATS
+  JetStream → konsumen idempoten** (tanpa panggilan sinkron antar-service). **L**
+- 🟢 **CI/CD per repo** (GitHub Actions): build/test + image service ke GHCR;
+  compose umbrella menariknya. **M**
+- 🔮 Saga kompensasi untuk pembuatan profil yang gagal permanen (ke depan). **S**
+
+## 🔮 v0.5 — Fitur
 
 - 🔮 **OIDC / OAuth2 provider** (discovery, authorization code + PKCE; social
   login). Fitur unggulan. **L**
@@ -108,7 +130,7 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🔜 diren
 - 🔮 **Soft-delete + restore**, dan menegakkan field `status` (suspend memblok login). **S**
 - 🔮 Operasi massal (assign role ke banyak user). **S**
 
-## 🔮 v0.5 — Skala & poles
+## 🔮 v0.6 — Skala & poles
 
 - 🔮 **Redis** untuk denylist token, rate-limit, dan cache permission
   (siap multi-instance). **M**

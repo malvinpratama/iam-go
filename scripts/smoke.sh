@@ -33,6 +33,18 @@ req() {
   RESP=$(cat /tmp/smoke_body)
 }
 
+# req_until METHOD PATH BODY TOKEN EXPECTED -> retries until CODE==EXPECTED (or ~6s).
+# Profiles are now created by an async UserRegistered event, so reads that
+# depend on the profile may need a brief retry.
+req_until() {
+  local expected="$5"
+  for _ in $(seq 1 20); do
+    req "$1" "$2" "$3" "$4"
+    [ "$CODE" = "$expected" ] && return 0
+    sleep 0.3
+  done
+}
+
 echo "== Smoke test against $BASE =="
 
 # 0) Admin login (bootstrap account)
@@ -97,7 +109,8 @@ check "assign admin role" 200 "$CODE"
 # 12) User logs in again -> new token now resolves admin permissions (dynamic RBAC)
 req POST /auth/login "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASS\"}"
 USER_ACCESS=$(json "$RESP" access_token)
-req GET "/users/$VICTIM_ID" "" "$USER_ACCESS"
+# Victim's profile is created by the async UserRegistered event → may need a retry.
+req_until GET "/users/$VICTIM_ID" "" "$USER_ACCESS" 200
 check "promoted user now allowed user:read" 200 "$CODE"
 
 # 13) Real delete: identity is removed, the user can no longer log in
@@ -105,6 +118,15 @@ req DELETE "/users/$VICTIM_ID" "" "$ADMIN_ACCESS"
 check "admin deletes user" 200 "$CODE"
 req POST /auth/login "{\"email\":\"$VICTIM_EMAIL\",\"password\":\"victimpass123\"}"
 check "deleted user cannot log in" 401 "$CODE"
+
+# ── v0.4 event-driven profile creation ──────────────────────
+# A fresh user that never calls /users/me (no lazy heal): the profile must be
+# created purely by the async UserRegistered event (outbox → NATS → user svc).
+EVT_EMAIL="evt+$RANDOM@iam.local"
+req POST /auth/register "{\"email\":\"$EVT_EMAIL\",\"password\":\"evtpass123\"}"
+EVT_ID=$(json "$RESP" user_id)
+req_until GET "/users/$EVT_ID" "" "$ADMIN_ACCESS" 200
+check "profile created via UserRegistered event" 200 "$CODE"
 
 # ── v0.2 Security+ ──────────────────────────────────────────
 V2_EMAIL="zoe+$RANDOM@iam.local"

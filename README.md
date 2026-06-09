@@ -8,10 +8,27 @@
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **Identity & Access Management** — Auth + User microservices with **granular
-RBAC**, built in **Go**. Sibling Rust implementation: [iam-rust](https://github.com/malvinpratama/iam-rust).
+RBAC**, built in **Go**. This is the **platform/umbrella** repo: it orchestrates
+the independently-deployed services and holds the deployment, docs and API
+collections. Sibling Rust implementation: [iam-rust](https://github.com/malvinpratama/iam-rust).
 
-> Stack: **Go · Gin** (REST gateway) · **gRPC** (inter-service) · **PostgreSQL** ·
-> **sqlc** · **JWT** (access + refresh, revocable).
+> Stack: **Go · Gin** (REST gateway) · **gRPC** (inter-service) · **NATS JetStream**
+> (async events) · **PostgreSQL** (one DB per service) · **sqlc** · **JWT**
+> (access + refresh, revocable).
+
+## Repositories
+
+Each service is its own repo — built, versioned and deployed independently;
+shared code lives in dedicated module repos.
+
+| Repo | Role |
+|---|---|
+| [iam-go-gateway](https://github.com/malvinpratama/iam-go-gateway) | REST→gRPC API gateway, per-route authorization |
+| [iam-go-auth](https://github.com/malvinpratama/iam-go-auth) | Auth + RBAC gRPC service (owns `auth_db`, publishes events) |
+| [iam-go-user](https://github.com/malvinpratama/iam-go-user) | Profile gRPC service (owns `user_db`, consumes events) |
+| [iam-go-contracts](https://github.com/malvinpratama/iam-go-contracts) | Shared `.proto` + generated gRPC stubs |
+| [iam-go-libs](https://github.com/malvinpratama/iam-go-libs) | Shared libraries (config, db, jwt, NATS, …) |
+| **iam-go** (this repo) | Platform: compose · k8s · docs · collections · smoke |
 
 ## Features
 
@@ -28,17 +45,25 @@ RBAC**, built in **Go**. Sibling Rust implementation: [iam-rust](https://github.
 ```
 client ──REST──▶ Gateway (Gin) ──gRPC──▶ Auth Service ──▶ Postgres (auth_db)
                      │            └─gRPC──▶ User Service ──▶ Postgres (user_db)
-                     └ validates JWT, resolves permissions, enforces RBAC per route
+                     │                          ▲
+                     │   register / delete      │ consumes
+                     └ validates JWT, RBAC      │
+                                                │
+        Auth ──outbox──▶ NATS JetStream ──iam.user.*──┘   (async, eventually consistent)
 ```
 
-Full diagrams & flows: **[docs/en/architecture.md](docs/en/architecture.md)**.
+Auth and User never call each other: cross-service effects (profile create on
+register, profile delete on delete) flow through a **transactional outbox →
+NATS JetStream → idempotent consumer**. Full diagrams & flows:
+**[docs/en/architecture.md](docs/en/architecture.md)**.
 
 ## Quick start
 
 ```bash
-make up        # build + run postgres + auth + user + gateway
-make smoke     # end-to-end smoke test against http://localhost:8080
-make down      # stop + remove volumes
+make up                 # pull service images from GHCR + run the full stack
+make up IMAGE_TAG=dev   # or use locally-built images
+make smoke              # end-to-end smoke test against http://localhost:8080
+make down               # stop + remove volumes
 ```
 
 A bootstrap admin (`admin@iam.local` / `admin12345`) is created on first boot.
@@ -63,11 +88,14 @@ Try it with Postman or Bruno — see **[docs/en/api-collections.md](docs/en/api-
 
 ## Project structure
 
+This umbrella repo holds only the platform layer; service code lives in the
+[per-service repos](#repositories).
+
 ```
-proto/        gRPC contracts          gen/        generated Go
-pkg/          shared libs             services/   auth · user · gateway
-deploy/       compose · k8s           scripts/    smoke.sh
+deploy/       docker-compose · k8s · .env.example
 docs/         en/ · id/ (bilingual)
+scripts/      smoke.sh
+*.json        Postman collection + environment
 ```
 
 ## Documentation
@@ -77,14 +105,11 @@ Reference · RBAC · Deployment · Development (with DB ERD) · API Collections.
 
 ## Development
 
-```bash
-make tools     # install buf + protoc plugins + sqlc (one-time)
-make proto     # regenerate gRPC stubs
-make sqlc      # regenerate DB access code
-make test      # unit tests
-```
-
-Details: **[docs/en/development.md](docs/en/development.md)**.
+Each service is developed in its own repo (`make build` / `make test` /
+`make docker` there). For cross-repo work, check the repos out side by side and
+span them with a `go.work` (kept out of git). The contracts and libs repos are
+tagged; services pin exact versions. Details:
+**[docs/en/development.md](docs/en/development.md)**.
 
 ## Deployment
 
