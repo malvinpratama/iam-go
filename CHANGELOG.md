@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-09
+
 ### Added (v0.5 — Observability)
 - **Distributed tracing** (OpenTelemetry → Jaeger): every request is traced
   across gateway → auth/user → Postgres, including SQL spans (otelpgx). Optional
