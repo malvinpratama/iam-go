@@ -8,11 +8,28 @@
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **Identity & Access Management** — microservice Auth + User dengan **RBAC
-granular**, dibangun dengan **Go**. Implementasi Rust pendamping:
-[`../iam-rust`](../iam-rust).
+granular**, dibangun dengan **Go**. Ini repo **platform/umbrella**: meng-orkestrasi
+service yang di-deploy independen, serta memuat deployment, dokumentasi, dan
+koleksi API. Implementasi Rust pendamping:
+[iam-rust](https://github.com/malvinpratama/iam-rust).
 
-> Stack: **Go · Gin** (REST gateway) · **gRPC** (antar-service) · **PostgreSQL** ·
-> **sqlc** · **JWT** (access + refresh, bisa di-revoke).
+> Stack: **Go · Gin** (REST gateway) · **gRPC** (antar-service) · **NATS JetStream**
+> (event async) · **PostgreSQL** (satu DB per service) · **sqlc** · **JWT**
+> (access + refresh, bisa di-revoke).
+
+## Repositori
+
+Tiap service adalah repo tersendiri — di-build, di-versioning, dan di-deploy
+independen; kode bersama ada di repo modul khusus.
+
+| Repo | Peran |
+|---|---|
+| [iam-go-gateway](https://github.com/malvinpratama/iam-go-gateway) | API gateway REST→gRPC, otorisasi per-route |
+| [iam-go-auth](https://github.com/malvinpratama/iam-go-auth) | Service Auth + RBAC (pemilik `auth_db`, penerbit event) |
+| [iam-go-user](https://github.com/malvinpratama/iam-go-user) | Service profil (pemilik `user_db`, konsumen event) |
+| [iam-go-contracts](https://github.com/malvinpratama/iam-go-contracts) | `.proto` bersama + stub gRPC ter-generate |
+| [iam-go-libs](https://github.com/malvinpratama/iam-go-libs) | Pustaka bersama (config, db, jwt, NATS, …) |
+| **iam-go** (repo ini) | Platform: compose · k8s · docs · koleksi · smoke |
 
 ## Fitur
 
@@ -29,17 +46,25 @@ granular**, dibangun dengan **Go**. Implementasi Rust pendamping:
 ```
 client ──REST──▶ Gateway (Gin) ──gRPC──▶ Auth Service ──▶ Postgres (auth_db)
                      │            └─gRPC──▶ User Service ──▶ Postgres (user_db)
-                     └ validasi JWT, resolve permission, enforce RBAC per route
+                     │                          ▲
+                     │   register / delete      │ konsumsi
+                     └ validasi JWT, RBAC       │
+                                                │
+        Auth ──outbox──▶ NATS JetStream ──iam.user.*──┘   (async, eventually consistent)
 ```
 
-Diagram & alur lengkap: **[docs/id/architecture.md](docs/id/architecture.md)**.
+Auth dan User tidak saling memanggil: efek lintas-service (buat profil saat
+register, hapus profil saat delete) mengalir lewat **outbox transaksional →
+NATS JetStream → konsumen idempoten**. Diagram & alur lengkap:
+**[docs/id/architecture.md](docs/id/architecture.md)**.
 
 ## Mulai cepat
 
 ```bash
-make up        # build + jalankan postgres + auth + user + gateway
-make smoke     # smoke test end-to-end ke http://localhost:8080
-make down      # hentikan + hapus volume
+make up                 # tarik image service dari GHCR + jalankan stack
+make up IMAGE_TAG=dev   # atau pakai image hasil build lokal
+make smoke              # smoke test end-to-end ke http://localhost:8080
+make down               # hentikan + hapus volume
 ```
 
 Bootstrap admin (`admin@iam.local` / `admin12345`) dibuat saat pertama boot. Lalu:
@@ -65,11 +90,14 @@ Coba lewat Postman atau Bruno — lihat
 
 ## Struktur project
 
+Repo umbrella ini hanya memuat lapisan platform; kode service ada di
+[repo per-service](#repositori).
+
 ```
-proto/        kontrak gRPC            gen/        kode Go ter-generate
-pkg/          pustaka bersama         services/   auth · user · gateway
-deploy/       compose · k8s           scripts/    smoke.sh
+deploy/       docker-compose · k8s · .env.example
 docs/         en/ · id/ (dwibahasa)
+scripts/      smoke.sh
+*.json        koleksi Postman + environment
 ```
 
 ## Dokumentasi
@@ -79,14 +107,11 @@ API Reference · RBAC · Deployment · Development (dengan ERD DB) · API Collec
 
 ## Pengembangan
 
-```bash
-make tools     # pasang buf + plugin protoc + sqlc (sekali)
-make proto     # regen stub gRPC
-make sqlc      # regen kode akses DB
-make test      # unit test
-```
-
-Detail: **[docs/id/development.md](docs/id/development.md)**.
+Tiap service dikembangkan di repo masing-masing (`make build` / `make test` /
+`make docker` di sana). Untuk kerja lintas-repo, checkout repo berdampingan dan
+gabungkan dengan `go.work` (jangan di-commit). Repo contracts & libs di-tag;
+service mem-pin versi yang pasti. Detail:
+**[docs/id/development.md](docs/id/development.md)**.
 
 ## Deployment
 

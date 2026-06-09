@@ -10,8 +10,8 @@ stringData:
   JWT_SECRET: k8s-demo-jwt-secret-rotate-me-min-32-bytes
   BOOTSTRAP_ADMIN_PASSWORD: ChangeMeAdmin-2026
   INTERNAL_SERVICE_TOKEN: k8s-demo-internal-token-rotate-me
-  AUTH_DATABASE_URL: postgres://app:app_secret@postgres:5432/auth_db?sslmode=disable
-  USER_DATABASE_URL: postgres://app:app_secret@postgres:5432/user_db?sslmode=disable
+  AUTH_DATABASE_URL: postgres://app:app_secret@postgres-auth:5432/auth_db?sslmode=disable
+  USER_DATABASE_URL: postgres://app:app_secret@postgres-user:5432/user_db?sslmode=disable
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -28,14 +28,6 @@ data:
   AUTH_GRPC_ADDR: auth:50051
   USER_GRPC_ADDR: user:50052
   GATEWAY_HTTP_PORT: "8080"
+  NATS_URL: nats://nats:4222
   APP_ENV: production
   LOG_LEVEL: info
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init
-data:
-  init.sql: |
-    CREATE DATABASE auth_db;
-    CREATE DATABASE user_db;

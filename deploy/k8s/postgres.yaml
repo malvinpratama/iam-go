@@ -1,7 +1,9 @@
+# One isolated Postgres instance per service (auth, user).
+# ── auth DB ──────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgres-data
+  name: postgres-auth-data
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
@@ -11,14 +13,14 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
+  name: postgres-auth
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: postgres }
+    matchLabels: { app: postgres-auth }
   template:
     metadata:
-      labels: { app: postgres }
+      labels: { app: postgres-auth }
     spec:
       containers:
         - name: postgres
@@ -28,29 +30,83 @@ spec:
               valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_USER } }
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_DB
+              value: auth_db
           ports:
             - containerPort: 5432
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: init
-              mountPath: /docker-entrypoint-initdb.d
           readinessProbe:
-            exec: { command: ["pg_isready", "-U", "app"] }
+            exec: { command: ["pg_isready", "-U", "app", "-d", "auth_db"] }
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
         - name: data
-          persistentVolumeClaim: { claimName: postgres-data }
-        - name: init
-          configMap: { name: postgres-init }
+          persistentVolumeClaim: { claimName: postgres-auth-data }
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: postgres-auth
 spec:
-  selector: { app: postgres }
+  selector: { app: postgres-auth }
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ── user DB ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-user-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres-user }
+  template:
+    metadata:
+      labels: { app: postgres-user }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_DB
+              value: user_db
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "app", "-d", "user_db"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: postgres-user-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-user
+spec:
+  selector: { app: postgres-user }
   ports:
     - port: 5432
       targetPort: 5432

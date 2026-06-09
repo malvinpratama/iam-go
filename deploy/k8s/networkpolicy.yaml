@@ -1,5 +1,6 @@
 # Defense-in-depth: restrict who can reach the internal services.
-# Only the gateway may call auth/user; only auth/user may reach postgres.
+# Only the gateway may call auth/user; each service reaches only its own DB;
+# only auth/user may reach NATS.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -33,14 +34,42 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: postgres-allow-services
+  name: postgres-auth-allow-auth
 spec:
   podSelector:
-    matchLabels: { app: postgres }
+    matchLabels: { app: postgres-auth }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: auth } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-user-allow-user
+spec:
+  podSelector:
+    matchLabels: { app: postgres-user }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: user } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nats-allow-services
+spec:
+  podSelector:
+    matchLabels: { app: nats }
   policyTypes: ["Ingress"]
   ingress:
     - from:
         - podSelector: { matchLabels: { app: auth } }
         - podSelector: { matchLabels: { app: user } }
       ports:
-        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 4222 }
