@@ -60,7 +60,7 @@ both to keep parity. Legend: 🟢 done · 🟡 partial/opt-in · 🔜 planned ·
   `0` disables). **S**
 - 🟢 **Self-hosted mirror** of all repos to Gitea. **S**
 
-## 🔜 v0.7 — OIDC / OAuth2 provider · M2 (next)
+## ✅ v0.7 — OIDC / OAuth2 provider (shipped, M2)
 
 The flagship "wow": make the IAM a real identity provider apps can integrate with.
 
@@ -160,7 +160,7 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🟡 sebag
   `0` = mati). **S**
 - 🟢 **Mirror self-hosted** semua repo ke Gitea. **S**
 
-## 🔜 v0.7 — OIDC / OAuth2 provider · M2 (berikutnya)
+## ✅ v0.7 — OIDC / OAuth2 provider (sudah rilis, M2)
 
 Fitur unggulan: jadikan IAM sebagai **identity provider** yang bisa diintegrasi app lain.
 
