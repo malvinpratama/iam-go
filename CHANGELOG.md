@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-10
+
+### Changed
+- **Live demo is up**: README points at the running stacks on k3s via ArgoCD —
+  `https://iam-go.digitalglobalgrowth.com/docs/` and
+  `https://iam-rust.digitalglobalgrowth.com/docs/` (interactive Swagger UI).
+- **BENCHMARKS.md filled with real numbers**: Go-vs-Rust head-to-head on the
+  same single-node cluster (off-node k6, no Cloudflare). Read-path 649 vs 631
+  req/s, p95 17.5 vs 21.6 ms, 0% errors — within ~3%; argon2 + infra sizing
+  dominate, not the language. Added an in-cluster k6 Job (`iam-gitops/bench`).
+
 ## [0.6.0] - 2026-06-10
 
 ### Added (v0.6 — Show it off)
