@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-06-10
+
+### Added
+- **Configurable auth rate limit**: the gateway's per-IP `/auth/*` limiter now
+  reads `AUTH_RATE_LIMIT` (requests, default 60) and `AUTH_RATE_WINDOW_SECONDS`
+  (window seconds, default 60); `AUTH_RATE_LIMIT=0` disables it. Was hard-coded.
+
 ## [0.6.2] - 2026-06-10
 
 ### Fixed
