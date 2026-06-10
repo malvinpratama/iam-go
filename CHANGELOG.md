@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-11
+
+### Added (v0.8 — horizontal scale)
+- **Redis-backed rate limiter** — the per-IP auth limiter now counts in Redis
+  (atomic `INCR`+`EXPIRE`), so the cap is enforced **globally across gateway
+  replicas** instead of per-pod. Falls back to in-memory when `REDIS_URL` is
+  unset (single-instance/dev). Fail-open on Redis error.
+- **Multi-replica gateway** — the demo cluster runs the gateway at **2 replicas**
+  behind a shared, ephemeral **Redis**; both stacks gain a `redis` Deployment and
+  `REDIS_URL` config.
+
+### Changed
+- `BENCHMARKS.md` gains a **Horizontal scale** section proving the shared cap
+  (5 global vs 5×2 per-pod: 8 requests → 5 passed, 3× `429`).
+
 ## [0.7.0] - 2026-06-10
 
 ### Added (v0.7 — OIDC / OAuth2 provider)
