@@ -91,10 +91,14 @@ curl -s localhost:8080/me -H "Authorization: Bearer $TOKEN"
 
 ## Live demo & benchmark
 
-Deployed to **k3s via ArgoCD (GitOps)** — both stacks side by side. Swagger UI
-at `https://iam-go.<domain>/docs` and `https://iam-rust.<domain>/docs`. The
-same k6 load runs against both for a Go-vs-Rust comparison — see
-**[BENCHMARKS.md](BENCHMARKS.md)** (`bench/load.js`).
+Both stacks run live on **k3s via ArgoCD (GitOps)**, side by side, behind Cloudflare:
+
+- **Go** — interactive Swagger: **https://iam-go.digitalglobalgrowth.com/docs/**
+- **Rust** — interactive Swagger: **https://iam-rust.digitalglobalgrowth.com/docs/**
+
+Log in with `admin@iam.local` / `ChangeMeAdmin-2026` (Authorize → Bearer), then
+try any endpoint. The same k6 load runs against both for a Go-vs-Rust comparison
+— see **[BENCHMARKS.md](BENCHMARKS.md)** (`bench/load.js`).
 
 ## API
 
