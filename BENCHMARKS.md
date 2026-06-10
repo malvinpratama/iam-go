@@ -96,7 +96,29 @@ emitted ~1% 5xx while Go emitted none.
   and **security controls** matter far more than Go vs Rust. Both are
   production-grade.
 
-## Reproduce
+## Horizontal scale — shared rate limiter (v0.8)
+
+The per-IP auth rate limiter is now **Redis-backed**, so the cap is enforced
+*globally* across gateway replicas instead of per-pod. The gateway runs at
+**2 replicas** in the demo cluster; both increment the same Redis counter
+(`rl:<ip>:<window>` via an atomic `INCR`+`EXPIRE` Lua script), and the limiter
+falls back to in-memory when `REDIS_URL` is unset (single-instance/dev).
+
+**Why it matters:** with a per-pod in-memory limiter, N replicas multiply the
+effective cap by N — a 60/min limit silently becomes 120/min at 2 replicas,
+defeating the control. A shared Redis counter keeps the cap fixed regardless of
+replica count.
+
+**Verified** — limit = 5, 2 replicas, 8 requests split 4/4 across both pods:
+
+| Limiter         | Requests | Passed | 429 blocked | Effective cap   |
+|-----------------|----------|--------|-------------|-----------------|
+| In-memory / pod | 8        | 8      | 0           | 5 × 2 = 10  ❌   |
+| Redis (shared)  | 8        | 5      | 3           | 5 (global)  ✅   |
+
+Both pods write the same key, so the 6th request through *either* replica is
+rejected (measured: 5 passed, 3× `429`). The limiter is **fail-open** on a Redis
+error — availability is preferred over strict enforcement for a single dependency.## Reproduce
 
 In-cluster k6 Job (fairest if you have kubectl): see
 [`iam-gitops/bench/k6.yaml`](http://gitea.digitalglobalgrowth.com/Digital-Global-Growth/iam-gitops).
