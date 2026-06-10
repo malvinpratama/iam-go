@@ -140,7 +140,7 @@ Docker Compose (local) and Kubernetes (kustomize) — see
 
 ## Roadmap
 
-- [ ] Rate limiting on auth endpoints
+- [x] Rate limiting on auth endpoints (per-IP fixed window, 60/min)
 - [ ] Audit log for RBAC changes
 - [ ] OpenAPI/Swagger spec generation
 - [ ] Refresh-token reuse detection

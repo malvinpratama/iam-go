@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-10
+
+### Fixed
+- **BENCHMARKS.md analysis corrected**: the ~9% error under mixed load is the
+  gateway's per-IP **auth rate limiter** (HTTP 429, 60 req/min on `/auth/*`) —
+  brute-force protection working as designed — **not** argon2 saturation (the
+  v0.6.1 note was wrong). Added a login-only status-code breakdown (60 logins
+  allowed, then 429) confirming it.
+
+### Changed
+- Roadmap: marked **rate limiting on auth endpoints** done — it already ships.
+
 ## [0.6.1] - 2026-06-10
 
 ### Changed
