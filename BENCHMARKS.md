@@ -11,11 +11,11 @@ requests — so running the same load against each is a fair head-to-head.
   hitting the Traefik ingress directly (`Host` override → node IP, **no
   Cloudflare/tunnel**). This keeps the load generator from stealing CPU from the
   system under test and removes edge/tunnel overhead — pure stack comparison.
-- Profile: ramp to **50 VUs**, hold, ramp down. Two scenarios:
+- Profile: ramp to **50 VUs**, hold, ramp down. Scenarios:
   - **Read-path** (steady state): `GET /me` (JWT validate + RBAC) + `GET /users`
     (paginated list) — the dominant real-world IAM traffic. 1 min hold.
-  - **Mixed**: same, plus `POST /auth/login` (argon2 verify) on 20% of
-    iterations — stresses the deliberately-expensive password path. 2 min hold.
+  - **Mixed**: same, plus `POST /auth/login` on 20% of iterations. 2 min hold.
+  - **Auth stress**: `POST /auth/login` only, to characterise the rate limiter.
 - Run on **2026-06-10**, single-node k3s, warm caches.
 
 ## Results — read-path (steady state, 0% errors)
@@ -32,12 +32,7 @@ flawlessly (0 failures over ~70k requests each).
 | Latency max | **132 ms** | 286 ms |
 | Error rate | 0.00% | 0.00% |
 
-## Results — mixed (20% argon2 login)
-
-Adding the argon2 login path. **Both stacks fail ~9% identically** — that's the
-login requests saturating argon2 on a small cluster (every `/me` + `/users`
-check still passed 100%). The failure is a property of **argon2 cost + node
-sizing, not the language**.
+## Results — mixed (20% login)
 
 | Metric | Go | Rust |
 |---|---|---|
@@ -45,30 +40,47 @@ sizing, not the language**.
 | Latency p50 | **8.21 ms** | 9.23 ms |
 | Latency p95 | **20.9 ms** | 22.3 ms |
 | Latency max | 1.03 s | **331 ms** |
-| Error rate (login saturation) | 8.91% | 8.95% |
+| Error rate | 8.91% | 8.95% |
+
+The ~9% error here is **not** a stack failure — it's the gateway's **per-IP auth
+rate limiter** (fixed window, **60 req/min**, guarding `/auth/*`) returning
+**HTTP 429** once the test's single IP exceeds 60 logins/min. Every `/me` +
+`/users` check still passed 100%. Identical in both stacks → it's a security
+control working as designed, not saturation.
+
+## Results — auth stress (login-only, status breakdown)
+
+Hammering `POST /auth/login` from one IP confirms the limiter (429 is rejected
+cheaply, before argon2 — hence the very high reject throughput):
+
+| | Go | Rust |
+|---|---|---|
+| Logins allowed (2xx) | 60 | 60 |
+| Rate-limited (429) | 226,616 | 228,549 |
+| 5xx | **0** | 2,391 (~1%) |
+
+Both admit exactly **60 logins/min/IP** then 429 the rest — brute-force
+protection. One real difference: under this extreme ~5k req/s reject load, Rust
+emitted ~1% 5xx while Go emitted none.
 
 ## Takeaways
 
-- **Within ~3% of each other.** Go edges ahead on read-path throughput and median
-  latency; Rust has the **tighter worst-case tail** under the mixed load (max
-  331 ms vs Go's 1.03 s — fewer outliers).
-- The dominant cost is **argon2** (login) and **single-node infra**, not the
-  runtime. For token-validation + read traffic — the bulk of IAM load — both
-  hold **sub-25 ms p95 at hundreds of req/s with zero errors**.
-- Practical conclusion: at this scale the **architecture** (per-service DB,
-  gRPC, event-driven outbox) and **infra sizing** matter far more than Go vs
-  Rust. Both are production-grade.
+- **Read/validate path — within ~3%.** Go edges ahead on throughput and median
+  latency; Rust's tail is wider on reads but **tighter under mixed load** (max
+  331 ms vs Go's 1.03 s). Both hold **sub-25 ms p95 at hundreds of req/s, 0
+  errors** — the bulk of real IAM traffic.
+- **The error rate is the auth rate limiter (429), by design** — not argon2, not
+  the runtime. Login is intentionally capped per IP to resist brute-force.
+- At this scale the **architecture** (per-service DB, gRPC, event-driven outbox)
+  and **security controls** matter far more than Go vs Rust. Both are
+  production-grade.
 
 ## Reproduce
 
 In-cluster k6 Job (fairest if you have kubectl): see
 [`iam-gitops/bench/k6.yaml`](http://gitea.digitalglobalgrowth.com/Digital-Global-Growth/iam-gitops).
-Or off-node from a LAN machine against the ingress:
-
-```bash
-# resolve the host to the node IP, hit Traefik directly (no Cloudflare)
-k6 run -e BASE_URL=http://gateway.iam-go.svc:8080  bench/load.js   # in-cluster
-```
+Or off-node from a LAN machine against the ingress. Note the **60 req/min/IP**
+auth limit — raise it (or spread source IPs) to load-test the login path itself.
 
 ## Caveats
 
