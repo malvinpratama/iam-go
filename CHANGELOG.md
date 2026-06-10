@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-06-10
+
+### Changed
+- **ROADMAP refreshed** to match reality: v0.5 (Observability) and v0.6 (Show it
+  off — Swagger, live k3s demo, k6 benchmark, configurable rate limit) marked
+  shipped; next milestones planned — **v0.7 OIDC/OAuth2 provider**, **v0.8
+  horizontal scale + Redis**.
+
 ## [0.6.4] - 2026-06-10
 
 ### Changed
