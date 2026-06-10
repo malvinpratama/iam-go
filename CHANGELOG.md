@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-11
+
+### Added (v0.9 — M4: enterprise auth)
+- **2FA / TOTP** — opt-in self-service: `POST /auth/2fa/enroll` (secret + otpauth
+  URI + one-time recovery codes), `/activate`, `/disable`. Login becomes a
+  challenge: a password login returns `mfa_required` + a short-lived `mfa_token`,
+  then `POST /auth/login/totp` with a TOTP or recovery code issues the token pair.
+- **Scoped API keys** (`iamk_…`) — `POST`/`GET`/`DELETE /api-keys`. Requested
+  scopes must be a subset of the creator's permissions; the effective scope is
+  `requested ∩ the owner's current permissions`. Stored as a SHA-256 hash, with
+  optional expiry and revoke. The gateway authenticates `Authorization: Bearer
+  iamk_…` via ValidateApiKey.
+- **Soft-delete + restore** — `deleted_at` on identity and profile.
+  `DELETE /users/:id` soft-deletes (login blocked, profile hidden, sessions
+  revoked); `POST /users/:id/restore` reverses it; `DELETE /users/:id?hard=true`
+  removes permanently. Driven by `UserDeleted{hard}` / `UserRestored` events.
+
+### Changed
+- Access-token validation now rejects soft-deleted accounts and MFA-purpose tokens.
+
 ## [0.8.0] - 2026-06-11
 
 ### Added (v0.8 — horizontal scale)

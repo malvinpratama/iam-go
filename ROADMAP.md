@@ -72,24 +72,30 @@ The flagship "wow": make the IAM a real identity provider apps can integrate wit
 - 🔜 Sample relying-party app demonstrating **"Login with iam"**. **S**
 - 🔮 Act as an RP too — **social login** (Google/GitHub). **M**
 
-## 🔜 v0.8 — Horizontal scale + Redis · M3
+## ✅ v0.8 — Horizontal scale + Redis (shipped, M3)
 
 Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
 
-- 🔜 **Redis-backed token denylist** (shared across gateway replicas). **S**
-- 🔜 **Redis-backed rate limiter** — shared window, replacing the per-pod
-  in-memory limiter (consistent cluster-wide). **M**
-- 🔜 **Redis permission cache** (cut per-request RBAC lookups). **M**
-- 🔜 **Multi-replica gateways** behind Traefik; prove denylist + limiter stay
-  consistent across pods. **S**
-- 🔜 **Benchmark at N replicas** → throughput-scaling chart in BENCHMARKS.md. **S**
+- ✅ **Redis-backed rate limiter** — per-IP fixed window in Redis (atomic
+  `INCR`+`EXPIRE`), shared across gateway replicas; in-memory fallback when
+  `REDIS_URL` is unset, fail-open on Redis error. **M**
+- ✅ **Multi-replica gateways** (replicas=2) behind Traefik; proven the limit is
+  enforced globally, not per-pod (5 global vs 5×2: 8 requests → 5 pass, 3×429). **S**
+- ✅ **Horizontal-scale section** in BENCHMARKS.md. **S**
+- 🔮 Redis token denylist + Redis permission cache — deferred to the backlog
+  (the limiter was the consistency-critical piece). **S/M**
 
-## 🔮 v0.9 — Enterprise auth features · M4
+## ✅ v0.9 — Enterprise auth features (shipped, M4)
 
-- 🔮 **2FA / TOTP** (+ recovery codes), required for admins. **M**
-- 🔮 **API keys / service accounts** for non-human auth. **M**
-- 🔮 **Soft-delete + restore**, and enforce the `status` field (suspend blocks login). **S**
-- 🔮 **Bulk operations** (assign role to many users). **S**
+- ✅ **2FA / TOTP** — opt-in self-service enroll → activate → disable, with
+  one-time **recovery codes**; login becomes a challenge (password → `mfa_token`
+  → TOTP/recovery code). **M**
+- ✅ **API keys** (`iamk_…`) — **scoped** programmatic credentials (scopes must be
+  a subset of the creator's perms; effective scope = requested ∩ current perms),
+  stored hashed, expiry + revoke. **M**
+- ✅ **Soft-delete + restore** — `deleted_at` on identity + profile; soft-deleted
+  users can't log in and are hidden, `?hard=true` for permanent delete. **S**
+- 🔮 **Bulk operations** (assign role to many users) — deferred. **S**
 
 ## 🔮 Backlog — engineering rigor · M5
 
@@ -172,23 +178,30 @@ Fitur unggulan: jadikan IAM sebagai **identity provider** yang bisa diintegrasi 
 - 🔜 App relying-party contoh untuk demo **"Login with iam"**. **S**
 - 🔮 Jadi RP juga — **social login** (Google/GitHub). **M**
 
-## 🔜 v0.8 — Skala horizontal + Redis · M3
+## ✅ v0.8 — Skala horizontal + Redis (sudah rilis, M3)
 
 Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
 
-- 🔜 **Token denylist via Redis** (dibagi antar replica gateway). **S**
-- 🔜 **Rate limiter via Redis** — window dibagi, ganti limiter in-memory per-pod
-  (konsisten lintas pod). **M**
-- 🔜 **Cache permission via Redis** (kurangi lookup RBAC per request). **M**
-- 🔜 **Gateway multi-replica** di belakang Traefik; buktikan denylist + limiter konsisten. **S**
-- 🔜 **Benchmark di N replica** → grafik scaling throughput di BENCHMARKS.md. **S**
+- ✅ **Rate limiter via Redis** — fixed-window per-IP di Redis (`INCR`+`EXPIRE`
+  atomik), dibagi lintas replica gateway; fallback in-memory kalau `REDIS_URL`
+  kosong, fail-open saat Redis error. **M**
+- ✅ **Gateway multi-replica** (replicas=2) di belakang Traefik; terbukti limit
+  ditegakkan global, bukan per-pod (5 global vs 5×2: 8 request → 5 lolos, 3×429). **S**
+- ✅ **Section horizontal-scale** di BENCHMARKS.md. **S**
+- 🔮 Token denylist + cache permission via Redis — ditunda ke backlog
+  (limiter adalah bagian paling kritis soal konsistensi). **S/M**
 
-## 🔮 v0.9 — Fitur enterprise auth · M4
+## ✅ v0.9 — Fitur enterprise auth (sudah rilis, M4)
 
-- 🔮 **2FA / TOTP** (+ recovery code), wajib untuk admin. **M**
-- 🔮 **API key / service account** untuk auth non-manusia. **M**
-- 🔮 **Soft-delete + restore**, dan menegakkan field `status` (suspend memblok login). **S**
-- 🔮 **Operasi massal** (assign role ke banyak user). **S**
+- ✅ **2FA / TOTP** — opt-in self-service enroll → activate → disable, dengan
+  **recovery code** sekali pakai; login jadi challenge (password → `mfa_token`
+  → kode TOTP/recovery). **M**
+- ✅ **API key** (`iamk_…`) — kredensial programatik **scoped** (scope wajib
+  subset permission pembuat; scope efektif = diminta ∩ permission saat ini),
+  disimpan hashed, expiry + revoke. **M**
+- ✅ **Soft-delete + restore** — `deleted_at` di identity + profile; user
+  ter-soft-delete tak bisa login & disembunyikan, `?hard=true` untuk hapus permanen. **S**
+- 🔮 **Operasi massal** (assign role ke banyak user) — ditunda. **S**
 
 ## 🔮 Backlog — engineering rigor · M5
 
