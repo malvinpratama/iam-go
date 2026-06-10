@@ -73,6 +73,10 @@ auth/user → Postgres (with SQL spans); metrics in **Prometheus**
 dashboard ([localhost:3000](http://localhost:3000)). Requests carry an
 `X-Request-Id` correlated into logs and traces.
 
+**Interactive API**: open **[localhost:8080/docs](http://localhost:8080/docs)**
+for live **Swagger UI** — log in via `POST /auth/login`, click **Authorize**,
+and try every endpoint. The OpenAPI spec is at `/openapi.yaml`.
+
 A bootstrap admin (`admin@iam.local` / `admin12345`) is created on first boot.
 Then:
 
@@ -84,6 +88,13 @@ TOKEN=$(curl -s localhost:8080/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"alice@iam.local","password":"alicepass123"}' | jq -r .access_token)
 curl -s localhost:8080/me -H "Authorization: Bearer $TOKEN"
 ```
+
+## Live demo & benchmark
+
+Deployed to **k3s via ArgoCD (GitOps)** — both stacks side by side. Swagger UI
+at `https://iam-go.<domain>/docs` and `https://iam-rust.<domain>/docs`. The
+same k6 load runs against both for a Go-vs-Rust comparison — see
+**[BENCHMARKS.md](BENCHMARKS.md)** (`bench/load.js`).
 
 ## API
 

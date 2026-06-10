@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-10
+
+### Added (v0.6 — Show it off)
+- **Interactive API**: the gateway serves **Swagger UI** at `/docs` and the
+  OpenAPI 3 spec at `/openapi.yaml` (vendored, no CDN). Authorize with a Bearer
+  token and try every endpoint live — no separate frontend needed.
+- **Live demo via GitOps**: deployable to **k3s with ArgoCD** — see the
+  `iam-gitops` repo (ArgoCD Applications + kustomize overlays + Traefik ingress),
+  both stacks side by side.
+- **Go-vs-Rust benchmark harness**: `bench/load.js` (k6) + `BENCHMARKS.md`
+  (methodology + comparison table) for a fair head-to-head on identical infra.
+
 ## [0.5.0] - 2026-06-09
 
 ### Added (v0.5 — Observability)
