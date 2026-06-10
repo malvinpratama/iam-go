@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-10
+
+### Added (v0.7 — OIDC / OAuth2 provider)
+- **OpenID Connect provider** at the gateway: discovery
+  (`/.well-known/openid-configuration`), **JWKS** (`/.well-known/jwks.json`),
+  **Authorization Code + PKCE** flow (`/authorize` with a login form + consent
+  screen + signed session cookie), **token endpoint** (`/token` —
+  `authorization_code` & `refresh_token`, `client_secret_basic`/`_post`/PKCE),
+  **UserInfo** (`/userinfo`), and **client registration** (`/oauth/clients`).
+- **ID tokens** (RS256) with `iss`/`sub`/`aud`/`email`/`nonce`, verifiable by
+  relying parties via JWKS.
+- A demo confidential **console client** is seeded on first boot
+  (`OIDC_CONSOLE_*` env).
+- Swagger UI documents all OIDC endpoints.
+
+### Changed
+- **Token signing migrated HS256 → RS256** (asymmetric, rotatable keys with
+  `kid`); token validation stays centralized in the auth service.
+
+### Notes
+- New deploy env: `OIDC_ISSUER`, `SESSION_SECRET`, `OIDC_CONSOLE_*`.
+
 ## [0.6.5] - 2026-06-10
 
 ### Changed
