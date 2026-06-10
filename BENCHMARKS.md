@@ -32,7 +32,7 @@ flawlessly (0 failures over ~70k requests each).
 | Latency max | **132 ms** | 286 ms |
 | Error rate | 0.00% | 0.00% |
 
-## Results — mixed (20% login)
+## Results — mixed (20% login, rate limiter ON)
 
 | Metric | Go | Rust |
 |---|---|---|
@@ -47,6 +47,24 @@ rate limiter** (fixed window, **60 req/min**, guarding `/auth/*`) returning
 **HTTP 429** once the test's single IP exceeds 60 logins/min. Every `/me` +
 `/users` check still passed 100%. Identical in both stacks → it's a security
 control working as designed, not saturation.
+
+## Results — mixed (rate limiter OFF — true argon2 cost)
+
+Re-run with `AUTH_RATE_LIMIT=0` so every login actually runs **argon2** (no 429).
+The real cost of password hashing surfaces — and the ranking **flips**:
+
+| Metric | Go | Rust |
+|---|---|---|
+| Throughput | 375 req/s | **400 req/s** |
+| Latency p50 | 44.8 ms | **43.9 ms** |
+| Latency p95 | 175 ms | **146 ms** |
+| Latency max | **2.96 s** | 5.9 s |
+| Error rate | 0.00% | 0.00% |
+
+**0 errors** over ~64k/68k requests — argon2 does **not** saturate or time out at
+50 VUs, it just adds latency (p50 jumps 8→45 ms vs read-path). This is the final
+proof the earlier ~9% was purely the rate limiter. On this **CPU-bound** path
+**Rust leads** (higher throughput, lower p95) — the mirror image of the read path.
 
 ## Results — auth stress (login-only, status breakdown)
 
@@ -65,12 +83,15 @@ emitted ~1% 5xx while Go emitted none.
 
 ## Takeaways
 
-- **Read/validate path — within ~3%.** Go edges ahead on throughput and median
-  latency; Rust's tail is wider on reads but **tighter under mixed load** (max
-  331 ms vs Go's 1.03 s). Both hold **sub-25 ms p95 at hundreds of req/s, 0
-  errors** — the bulk of real IAM traffic.
-- **The error rate is the auth rate limiter (429), by design** — not argon2, not
-  the runtime. Login is intentionally capped per IP to resist brute-force.
+- **The workload picks the winner — and it's close either way:**
+  - **Read/validate path (I/O-bound):** Go edges ahead — 649 vs 631 req/s,
+    p95 17.5 vs 21.6 ms.
+  - **Login/argon2 path (CPU-bound):** Rust edges ahead — 400 vs 375 req/s,
+    p95 146 vs 175 ms.
+  Near mirror-image results: **Go for I/O-bound reads, Rust for CPU-bound hashing.**
+- **The earlier ~9% error was the auth rate limiter (429), by design** — not
+  argon2, not the runtime. With the limiter off the same mixed load runs at
+  **0% errors**; argon2 adds latency but never saturates at 50 VUs.
 - At this scale the **architecture** (per-service DB, gRPC, event-driven outbox)
   and **security controls** matter far more than Go vs Rust. Both are
   production-grade.

@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-06-10
+
+### Changed
+- **BENCHMARKS.md: added rate-limiter-OFF results.** With `AUTH_RATE_LIMIT=0`
+  the mixed load runs at **0% errors** (final proof the earlier ~9% was the auth
+  rate limiter, not argon2), and the Go/Rust ranking flips: **Go** leads the
+  I/O-bound read path, **Rust** leads the CPU-bound argon2 login path.
+
 ## [0.6.3] - 2026-06-10
 
 ### Added
