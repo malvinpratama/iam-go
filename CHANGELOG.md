@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-06-12
+
+Round out multi-tenant RBAC: role assignment is now tenant/project-scoped and
+manageable per user from the console.
+
+### Added
+- **Project-scoped role assignment** — assigning/revoking a role is scoped to the
+  caller's active tenant and an optional project (`project_id` empty = tenant-wide
+  and applies to every project; set = that project only).
+- **`GetUserRoleAssignments`** RPC + **`GET /users/:id/roles`** — list a user's
+  role assignments (role + project scope) in the active tenant.
+- **Console** — a per-user role panel on the Users page: assignments shown as
+  chips (`role · tenant-wide/project`) with revoke ×, plus an assign control with
+  a scope picker.
+
+### Fixed
+- Role assignment now writes the **correct tenant** — the write path previously
+  ignored the active tenant and always landed in the default tenant.
+- Bootstrap admin + `Register` no longer hit a `user_roles_tenant_id_fkey`
+  violation (the role insert now passes the default tenant explicitly).
+
 ## [0.10.0] - 2026-06-11
 
 Multi-tenant + multi-project — the IAM becomes a B2B identity platform

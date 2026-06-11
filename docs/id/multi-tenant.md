@@ -72,6 +72,11 @@ Jadi **user yang sama bisa jadi admin di satu tenant dan user biasa di tenant
 lain**. Cache permission di-key `perms:{tenant}:{project}:{user}`, dan perubahan
 role menghapus **semua** entri user itu (di seluruh tenant).
 
+**Memberi** role juga ter-scope: assignment ditulis untuk tenant aktif + project
+opsional — `project_id` kosong = **tenant-wide** (berlaku di semua project), diisi
+= cuma untuk **project itu**. `GET /users/:id/roles` menampilkan assignment user
+(role + scope) supaya admin bisa revoke dengan presisi.
+
 ---
 
 ## 4. Row-Level Security (defense in depth)
@@ -122,6 +127,9 @@ Tiap OAuth client milik sebuah tenant (organisasi yang dilayani app-nya):
 | `POST /members` | `member:write` | Tambah member via email |
 | `DELETE /members/:userId` | `member:write` | Hapus member |
 | `GET /users` | `user:read` | Direktori tenant aktif (member ⋈ profile, satu batch) |
+| `GET /users/:id/roles` | `role:read` | Assignment role user (role + scope project) di tenant |
+| `POST /users/:id/roles` | `role:assign` | Beri role (body `project_id` kosong = tenant-wide) |
+| `DELETE /users/:id/roles/:role` | `role:assign` | Cabut assignment (`?project_id=` pilih yang scoped) |
 
 Membuat tenant berjalan dalam satu transaksi: buat tenant → daftarkan pembuat →
 beri dia role `admin` **ter-scope ke tenant baru** (role platform tidak terbawa
