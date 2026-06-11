@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-06-11
+
+### Added
+- **2FA status** (`GET /auth/2fa` → GetTotpStatus) — reports whether 2FA is
+  active; the console uses it to hide enrollment once 2FA is on.
+- **Integration tests** against a real Postgres via testcontainers for the auth
+  repo (Go `-tags=integration`, Rust `--features integration`), run in CI.
+- **Saga for permanently-failed profile creation** — after N retries the user
+  service emits `ProfileCreationFailed`; auth records it and the profile
+  self-heals on the next `GET /users/me` (forward recovery — the user is never
+  locked out of an account they registered).
+
+### Fixed
+- **2FA in the OIDC `/authorize` browser flow** — a 2FA-enabled user got
+  "login failed"; the flow now prompts for a TOTP/recovery code
+  (`/authorize/totp`) before issuing the authorization code.
+- **Re-enrolling 2FA when already enabled** reset the secret and silently
+  disabled 2FA; it is now rejected (409 — disable first).
+
+### Changed
+- **`ListRoles` N+1 removed** — roles + their permissions load in one
+  `LEFT JOIN + array_agg` query.
+
 ## [0.9.1] - 2026-06-11
 
 ### Added
