@@ -101,9 +101,9 @@ Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
 
 - ✅ **Integration tests** with testcontainers (Postgres) for the auth repo — Go (`-tags=integration`) + Rust (`--features integration`), green in CI. **M**
 - 🟡 **mTLS** between gateway ↔ services, wired up (generator already ships). **M**
-- 🔮 **Helm chart** (alternative to kustomize); root Makefile orchestrating both stacks. **S**
+- ✅ **Helm chart** deploying either stack (config/secrets from per-stack values) + root Makefile. **S**
 - ✅ Fixed the `ListRoles` N+1 — one `LEFT JOIN + array_agg` query (both stacks). **S**
-- 🔮 **Compensation saga** for permanently-failed profile creation. **S**
+- ✅ **Permanently-failed profile creation** handled — the user service emits a failure event after N retries; auth records it and the profile self-heals on next read (forward recovery, user stays active). **S**
 
 ---
 
@@ -207,6 +207,6 @@ Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
 
 - ✅ **Integration test** dengan testcontainers (Postgres) untuk repo auth — Go + Rust, hijau di CI. **M**
 - 🟡 **mTLS** antara gateway ↔ service, di-wire (generator sudah ada). **M**
-- 🔮 **Helm chart** (alternatif kustomize); Makefile root untuk kedua stack. **S**
+- ✅ **Helm chart** deploy salah satu stack (config/secret dari values per-stack) + Makefile root. **S**
 - ✅ N+1 di `ListRoles` diperbaiki — satu query `LEFT JOIN + array_agg` (dua stack). **S**
-- 🔮 **Saga kompensasi** untuk pembuatan profil yang gagal permanen. **S**
+- ✅ **Pembuatan profil gagal permanen** ditangani — user-service emit event gagal setelah N retry; auth catat, profile self-heal pas dibaca (forward recovery, user tetap aktif). **S**
