@@ -96,6 +96,43 @@ emitted ~1% 5xx while Go emitted none.
   and **security controls** matter far more than Go vs Rust. Both are
   production-grade.
 
+## Multi-tenant overhead (v0.10, M6)
+
+Going multi-tenant adds work on a few hot paths, so it's worth quantifying the
+cost vs the single-tenant v0.9.2:
+
+- `GET /me` — `ValidateToken` now also verifies an **active membership**.
+- `GET /users` — is now the active-tenant directory: **`ListMembers` ⋈ batch
+  `GetProfiles`** (one extra round-trip, no N+1) instead of one profile list.
+- `GET /members`, `GET /projects` — run **inside a transaction as `iam_rls`**
+  (`SET LOCAL ROLE` + `set_config('app.tenant_id', …)`) so Postgres RLS is
+  enforced; `GET /roles` is the **plain-query baseline** for the same caller.
+
+**How to measure** (the bench script tags every route, so the k6 summary prints
+`p(95)` per route):
+
+```bash
+# RLS/tx cost within v0.10: compare the RLS-wrapped reads to the plain one
+k6 run -e BASE_URL=https://iam-go.<domain> -e ADMIN_PASSWORD=<pw> bench/load.js
+#   → http_req_duration{route:members}  vs  {route:roles}   = the RLS/tx delta
+
+# Cross-version: run the same script against a v0.9.2 deploy and a v0.10 deploy
+#   → {route:me} and {route:users} deltas = the membership-check + directory cost
+```
+
+| Route | What's new in v0.10 | p95 v0.9.2 | p95 v0.10 | Δ |
+|---|---|---|---|---|
+| `GET /me` | + active-membership check | _fill_ | _fill_ | _fill_ |
+| `GET /users` | members ⋈ batch profiles | _fill_ | _fill_ | _fill_ |
+| `GET /members` (RLS) | tx as `iam_rls` + GUC | n/a | _fill_ | vs `/roles` ↓ |
+| `GET /roles` (plain) | baseline | _fill_ | _fill_ | — |
+
+> Expectation: the RLS-wrapped reads carry one extra `BEGIN`/`SET LOCAL`/`COMMIT`
+> round-trip over the plain query; the membership check is a single indexed
+> `EXISTS` (and the permission cache absorbs the RBAC join). Fill the table from
+> a run on the cluster. These are **relative** numbers under identical conditions,
+> not production capacity (see Caveats).
+
 ## Horizontal scale — shared rate limiter (v0.8)
 
 The per-IP auth rate limiter is now **Redis-backed**, so the cap is enforced
