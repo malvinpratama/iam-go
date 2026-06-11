@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-11
+
+Multi-tenant + multi-project — the IAM becomes a B2B identity platform
+(Organizations). Full doc: [docs/en/multi-tenant.md](docs/en/multi-tenant.md).
+
+### Added
+- **Tenants, projects, memberships** — one global user belongs to many tenants;
+  per-tenant roles, members, OAuth clients, API keys. A seeded default tenant
+  (`…0001`) backfills all existing data, so single-tenant stays unchanged.
+- **Tenant-bound tokens** — access token carries `tenant_id`/`project_id`; login
+  auto-picks the user's active membership and refresh preserves it.
+- **`POST /auth/switch`** + **`GET /me/memberships`** — switch the active tenant
+  (re-issues a token; 403 if not a member) and list the caller's tenants.
+- **Tenant / project / member admin** — `POST|GET /tenants`, `POST|GET /projects`,
+  `GET|POST /members` + `DELETE /members/:id`, gated by `tenant:*`/`project:*`/
+  `member:*`. Creating a tenant makes the creator its admin.
+- **Scoped RBAC** — roles/permissions resolved per the token's tenant + project;
+  permission cache keyed `perms:{tenant}:{project}:{user}`.
+- **Postgres Row-Level Security (fail-closed)** on the tenant tables via a
+  non-superuser `iam_rls` role — DB-level isolation on top of app-layer `WHERE`.
+- **OIDC client → tenant binding** — a login through an OAuth client is scoped to
+  that client's tenant (members only); `RegisterClient` stamps the caller tenant.
+- **Batch `GetProfiles`** (user service) — `/users` is now the active-tenant
+  directory (members joined with profiles in one call, no N+1).
+- **Console**: tenant switcher + Tenants/Projects/Members pages.
+
+### Fixed
+- **Refresh-token rotation grace** — concurrent refreshes with the same token
+  (e.g. NextAuth firing several requests when the access token expires) wiped the
+  whole token family via reuse-detection, locking the session out despite a valid
+  7-day refresh token. A rotated token re-presented within a 60s grace is now
+  re-issued; logout-revoked tokens still hard-fail.
+
+### Ops
+- No new env/secret. Migrations `000010`–`000013` run on auth startup (apply by
+  rolling out auth, then user + gateway). Silenced per-probe access logs
+  (gRPC health checks).
+
 ## [0.9.2] - 2026-06-11
 
 ### Added
