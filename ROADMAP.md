@@ -64,12 +64,12 @@ both to keep parity. Legend: 🟢 done · 🟡 partial/opt-in · 🔜 planned ·
 
 The flagship "wow": make the IAM a real identity provider apps can integrate with.
 
-- 🔜 **Discovery** (`.well-known/openid-configuration`) + **JWKS** endpoint with
+- ✅ **Discovery** (`.well-known/openid-configuration`) + **JWKS** endpoint with
   rotating signing keys. **M**
-- 🔜 **Authorization Code + PKCE** flow: `/authorize`, `/token`, `/userinfo`,
+- ✅ **Authorization Code + PKCE** flow: `/authorize`, `/token`, `/userinfo`,
   consent screen. **L**
-- 🔜 **ID tokens** (OIDC claims) + **client registration** (confidential + public clients). **M**
-- 🔜 Sample relying-party app demonstrating **"Login with iam"**. **S**
+- ✅ **ID tokens** (OIDC claims) + **client registration** (confidential + public clients). **M**
+- ✅ Sample relying-party app demonstrating **"Login with iam"**. **S**
 - 🔮 Act as an RP too — **social login** (Google/GitHub). **M**
 
 ## ✅ v0.8 — Horizontal scale + Redis (shipped, M3)
@@ -82,8 +82,8 @@ Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
 - ✅ **Multi-replica gateways** (replicas=2) behind Traefik; proven the limit is
   enforced globally, not per-pod (5 global vs 5×2: 8 requests → 5 pass, 3×429). **S**
 - ✅ **Horizontal-scale section** in BENCHMARKS.md. **S**
-- 🔮 Redis token denylist + Redis permission cache — deferred to the backlog
-  (the limiter was the consistency-critical piece). **S/M**
+- ✅ **Redis token denylist** (shared across replicas) + **Redis permission cache**
+  (short TTL, invalidated on role change) — landed in v0.9.1. **S/M**
 
 ## ✅ v0.9 — Enterprise auth features (shipped, M4)
 
@@ -95,7 +95,7 @@ Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
   stored hashed, expiry + revoke. **M**
 - ✅ **Soft-delete + restore** — `deleted_at` on identity + profile; soft-deleted
   users can't log in and are hidden, `?hard=true` for permanent delete. **S**
-- 🔮 **Bulk operations** (assign role to many users) — deferred. **S**
+- ✅ **Bulk operations** — assign one role to many users (`POST /roles/{name}/assignments`), landed in v0.9.1. **S**
 
 ## 🔮 Backlog — engineering rigor · M5
 
@@ -170,12 +170,12 @@ diterapkan di keduanya agar tetap setara. Keterangan: 🟢 selesai · 🟡 sebag
 
 Fitur unggulan: jadikan IAM sebagai **identity provider** yang bisa diintegrasi app lain.
 
-- 🔜 **Discovery** (`.well-known/openid-configuration`) + endpoint **JWKS** dengan
+- ✅ **Discovery** (`.well-known/openid-configuration`) + endpoint **JWKS** dengan
   rotasi kunci. **M**
-- 🔜 Flow **Authorization Code + PKCE**: `/authorize`, `/token`, `/userinfo`,
+- ✅ Flow **Authorization Code + PKCE**: `/authorize`, `/token`, `/userinfo`,
   layar consent. **L**
-- 🔜 **ID token** (klaim OIDC) + **registrasi client** (confidential + public). **M**
-- 🔜 App relying-party contoh untuk demo **"Login with iam"**. **S**
+- ✅ **ID token** (klaim OIDC) + **registrasi client** (confidential + public). **M**
+- ✅ App relying-party contoh untuk demo **"Login with iam"**. **S**
 - 🔮 Jadi RP juga — **social login** (Google/GitHub). **M**
 
 ## ✅ v0.8 — Skala horizontal + Redis (sudah rilis, M3)
@@ -188,8 +188,8 @@ Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
 - ✅ **Gateway multi-replica** (replicas=2) di belakang Traefik; terbukti limit
   ditegakkan global, bukan per-pod (5 global vs 5×2: 8 request → 5 lolos, 3×429). **S**
 - ✅ **Section horizontal-scale** di BENCHMARKS.md. **S**
-- 🔮 Token denylist + cache permission via Redis — ditunda ke backlog
-  (limiter adalah bagian paling kritis soal konsistensi). **S/M**
+- ✅ **Token denylist** (dibagi antar replica) + **cache permission** via Redis
+  (TTL pendek, di-invalidate saat role berubah) — masuk di v0.9.1. **S/M**
 
 ## ✅ v0.9 — Fitur enterprise auth (sudah rilis, M4)
 
@@ -201,7 +201,7 @@ Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
   disimpan hashed, expiry + revoke. **M**
 - ✅ **Soft-delete + restore** — `deleted_at` di identity + profile; user
   ter-soft-delete tak bisa login & disembunyikan, `?hard=true` untuk hapus permanen. **S**
-- 🔮 **Operasi massal** (assign role ke banyak user) — ditunda. **S**
+- ✅ **Operasi massal** — assign satu role ke banyak user (`POST /roles/{name}/assignments`), masuk di v0.9.1. **S**
 
 ## 🔮 Backlog — engineering rigor · M5
 
