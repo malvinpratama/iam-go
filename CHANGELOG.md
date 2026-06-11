@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-06-11
+
+### Added
+- **Bulk role assignment** — `POST /roles/{name}/assignments` assigns one role to
+  many users in a single call (partial success: invalid ids come back in `failed[]`).
+- **Soft-deleted user view** — `GET /users?deleted=true` lists soft-deleted
+  profiles so they can be restored.
+- **Redis token denylist + permission cache** (shared across auth replicas):
+  logout denylists the access-token jti in Redis so other replicas reject it at
+  once, and `ValidateToken` caches a user's permissions (short TTL, invalidated
+  on role change) to cut the RBAC join off the hot path. Falls back to Postgres /
+  no-cache when `REDIS_URL` is unset.
+- **Full admin console** — Users gain soft-delete, a restore view (`?deleted`),
+  and bulk role assignment; Roles gain create/delete + grant/revoke permission.
+
+### Changed
+- ROADMAP brought in sync: v0.7 (OIDC) sub-items marked shipped; v0.8 Redis
+  denylist + permission cache and v0.9 bulk operations completed.
+
 ## [0.9.0] - 2026-06-11
 
 ### Added (v0.9 — M4: enterprise auth)
