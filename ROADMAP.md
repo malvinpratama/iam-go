@@ -99,10 +99,10 @@ Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
 
 ## 🔮 Backlog — engineering rigor · M5
 
-- 🔜 **Integration tests** with testcontainers (Postgres) for repos/handlers. **M**
+- ✅ **Integration tests** with testcontainers (Postgres) for the auth repo — Go (`-tags=integration`) + Rust (`--features integration`), green in CI. **M**
 - 🟡 **mTLS** between gateway ↔ services, wired up (generator already ships). **M**
 - 🔮 **Helm chart** (alternative to kustomize); root Makefile orchestrating both stacks. **S**
-- 🔜 Fix `ListRoles` N+1 query. **S**
+- ✅ Fixed the `ListRoles` N+1 — one `LEFT JOIN + array_agg` query (both stacks). **S**
 - 🔮 **Compensation saga** for permanently-failed profile creation. **S**
 
 ---
@@ -205,8 +205,8 @@ Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
 
 ## 🔮 Backlog — engineering rigor · M5
 
-- 🔜 **Integration test** dengan testcontainers (Postgres) — repo + handler. **M**
+- ✅ **Integration test** dengan testcontainers (Postgres) untuk repo auth — Go + Rust, hijau di CI. **M**
 - 🟡 **mTLS** antara gateway ↔ service, di-wire (generator sudah ada). **M**
 - 🔮 **Helm chart** (alternatif kustomize); Makefile root untuk kedua stack. **S**
-- 🔜 Perbaiki N+1 di `ListRoles`. **S**
+- ✅ N+1 di `ListRoles` diperbaiki — satu query `LEFT JOIN + array_agg` (dua stack). **S**
 - 🔮 **Saga kompensasi** untuk pembuatan profil yang gagal permanen. **S**
