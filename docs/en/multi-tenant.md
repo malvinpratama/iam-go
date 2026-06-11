@@ -73,6 +73,11 @@ So **the same user can be an admin in one tenant and a plain user in another**.
 The permission cache is keyed `perms:{tenant}:{project}:{user}`, and a role
 change clears **all** of a user's entries (across every tenant).
 
+**Assigning** a role is likewise scoped: an assignment is written for the active
+tenant and an optional project — `project_id` empty = **tenant-wide** (applies to
+every project), set = scoped to **that project** only. `GET /users/:id/roles`
+lists a user's assignments (role + scope) so an admin can revoke precisely.
+
 ---
 
 ## 4. Row-Level Security (defense in depth)
@@ -123,6 +128,9 @@ Each OAuth client belongs to a tenant (the organization its app serves):
 | `POST /members` | `member:write` | Add a member by email |
 | `DELETE /members/:userId` | `member:write` | Remove a member |
 | `GET /users` | `user:read` | Active-tenant directory (members ⋈ profiles, one batch fetch) |
+| `GET /users/:id/roles` | `role:read` | A user's role assignments (role + project scope) in the tenant |
+| `POST /users/:id/roles` | `role:assign` | Assign a role (body `project_id` empty = tenant-wide) |
+| `DELETE /users/:id/roles/:role` | `role:assign` | Revoke an assignment (`?project_id=` selects the scoped one) |
 
 Creating a tenant runs in one transaction: create tenant → enroll the creator →
 grant them the `admin` role **scoped to the new tenant** (platform roles do not
