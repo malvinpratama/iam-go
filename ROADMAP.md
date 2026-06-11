@@ -105,6 +105,20 @@ Make it genuinely multi-instance (builds on the rate-limiter work in v0.6).
 - ✅ Fixed the `ListRoles` N+1 — one `LEFT JOIN + array_agg` query (both stacks). **S**
 - ✅ **Permanently-failed profile creation** handled — the user service emits a failure event after N retries; auth records it and the profile self-heals on next read (forward recovery, user stays active). **S**
 
+## ✅ v0.10 — Multi-tenant + multi-project (shipped, M6)
+
+Turns the IAM into a **B2B identity platform** (Organizations). Full doc:
+**[docs/en/multi-tenant.md](docs/en/multi-tenant.md)**.
+
+- ✅ **Tenants / projects / memberships** — one global user, many tenants; per-tenant roles, members, OAuth clients, API keys; a seeded default tenant backfills existing data. **L**
+- ✅ **Tenant-bound tokens** — access token carries `tenant_id`/`project_id`; login auto-picks a membership, refresh keeps the binding, `POST /auth/switch` re-issues for another tenant, `ValidateToken` checks active membership. **M**
+- ✅ **Scoped RBAC** — roles/permissions resolved per tenant + project; permission cache keyed `perms:{tenant}:{project}:{user}`. **M**
+- ✅ **RLS fail-closed** — Postgres Row-Level Security on the tenant tables via a non-superuser `iam_rls` role (defense in depth on top of app-layer `WHERE`). **M**
+- ✅ **OIDC client → tenant** — each OAuth client binds to a tenant; login through it scopes the token to that org (members only). **S**
+- ✅ **Tenant / project / member CRUD** + tenant-scoped `/users` directory (members ⋈ batch profiles). **M**
+- ✅ **Console** — tenant switcher + tenants/projects/members pages. **M**
+- ✅ Fix: **refresh-token rotation grace** (prevents an OIDC concurrent-refresh session lockout). **S**
+
 ---
 
 # Roadmap (Bahasa Indonesia)
@@ -210,3 +224,17 @@ Bikin benar-benar multi-instance (lanjutan kerja rate-limiter di v0.6).
 - ✅ **Helm chart** deploy salah satu stack (config/secret dari values per-stack) + Makefile root. **S**
 - ✅ N+1 di `ListRoles` diperbaiki — satu query `LEFT JOIN + array_agg` (dua stack). **S**
 - ✅ **Pembuatan profil gagal permanen** ditangani — user-service emit event gagal setelah N retry; auth catat, profile self-heal pas dibaca (forward recovery, user tetap aktif). **S**
+
+## ✅ v0.10 — Multi-tenant + multi-project (sudah rilis, M6)
+
+Mengubah IAM jadi **platform identity B2B** (Organizations). Dok lengkap:
+**[docs/id/multi-tenant.md](docs/id/multi-tenant.md)**.
+
+- ✅ **Tenant / project / membership** — satu user global, banyak tenant; role, member, OAuth client, API key per-tenant; default tenant yang di-seed mem-backfill data lama. **L**
+- ✅ **Token terikat tenant** — access token bawa `tenant_id`/`project_id`; login auto-pilih membership, refresh pertahankan ikatan, `POST /auth/switch` terbitkan ulang untuk tenant lain, `ValidateToken` cek membership aktif. **M**
+- ✅ **RBAC ter-scope** — role/permission diresolusi per tenant + project; cache permission di-key `perms:{tenant}:{project}:{user}`. **M**
+- ✅ **RLS fail-closed** — Row-Level Security Postgres di tabel tenant via role non-superuser `iam_rls` (defense in depth di atas `WHERE` app). **M**
+- ✅ **OIDC client → tenant** — tiap OAuth client terikat ke tenant; login lewatnya men-scope token ke org itu (hanya member). **S**
+- ✅ **CRUD tenant / project / member** + direktori `/users` ter-scope tenant (member ⋈ batch profile). **M**
+- ✅ **Console** — tenant switcher + halaman tenants/projects/members. **M**
+- ✅ Fix: **refresh-token rotation grace** (mencegah lockout sesi akibat refresh paralel OIDC). **S**

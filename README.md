@@ -34,7 +34,8 @@ shared code lives in dedicated module repos.
 
 - 🔐 **Auth**: register, login, JWT access + refresh tokens with **rotation** and **revocation**.
 - 👤 **Users**: profile CRUD + paginated search, via a dedicated service.
-- 🛡️ **Granular RBAC**: roles → permissions; **dynamic** (role changes apply on the next request).
+- 🛡️ **Granular RBAC**: roles → permissions; **dynamic** (role changes apply on the next request); **scoped per tenant/project**.
+- 🏢 **Multi-tenant** (v0.10): tenants/projects/memberships, tenant-bound tokens + switcher, OIDC client→tenant, app-layer **+ Postgres RLS** isolation — see **[docs/en/multi-tenant.md](docs/en/multi-tenant.md)**.
 - 🧩 **Role management**: create/update/delete roles, grant/revoke permissions, assign/revoke roles.
 - 🚪 **API Gateway**: single public entrypoint, REST→gRPC, per-route authorization.
 - 📦 **Ready to run**: Docker Compose + Kubernetes manifests, auto migrations & seed, bootstrap admin.

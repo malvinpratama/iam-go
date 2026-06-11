@@ -35,7 +35,8 @@ independen; kode bersama ada di repo modul khusus.
 
 - 🔐 **Auth**: register, login, JWT access + refresh token dengan **rotasi** dan **revocation**.
 - 👤 **Users**: CRUD profil + pencarian berpaginasi, lewat service tersendiri.
-- 🛡️ **RBAC granular**: role → permission; **dinamis** (perubahan role berlaku di request berikutnya).
+- 🛡️ **RBAC granular**: role → permission; **dinamis** (perubahan role berlaku di request berikutnya); **ter-scope per tenant/project**.
+- 🏢 **Multi-tenant** (v0.10): tenant/project/membership, token terikat tenant + switcher, OIDC client→tenant, isolasi app-layer **+ Postgres RLS** — lihat **[docs/id/multi-tenant.md](docs/id/multi-tenant.md)**.
 - 🧩 **Manajemen role**: buat/ubah/hapus role, grant/revoke permission, assign/revoke role.
 - 🚪 **API Gateway**: satu pintu masuk publik, REST→gRPC, otorisasi per-route.
 - 📦 **Siap jalan**: Docker Compose + manifest Kubernetes, migrasi & seed otomatis, bootstrap admin.

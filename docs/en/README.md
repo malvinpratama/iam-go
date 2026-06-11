@@ -12,6 +12,7 @@ built in **Go** (Gin · gRPC · sqlc · PostgreSQL · JWT).
 | [Architecture](architecture.md) | Services, component & sequence diagrams, token model |
 | [API Reference](api-reference.md) | Every REST endpoint (request/response/errors) + gRPC contracts |
 | [RBAC Model](rbac.md) | Roles, permissions, seed, dynamic RBAC, role management |
+| [Multi-tenancy](multi-tenant.md) | Tenants/projects/memberships, tenant-bound tokens, scoped RBAC, RLS, OIDC client→tenant |
 | [Deployment & Ops](deployment.md) | Docker Compose, Kubernetes, env vars, migrations, troubleshooting |
 | [Development](development.md) | Toolchain, codegen, project structure, tests, **DB ERD** |
 | [API Collections](api-collections.md) | Postman & Bruno usage (two native collections) |
