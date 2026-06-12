@@ -6,6 +6,58 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-12
+
+A security-hardening pass across the services and the deployment, plus
+self-service account features. Full security overview:
+[docs/en/security.md](docs/en/security.md).
+
+### Added
+- **Self-service password change** — `POST /auth/password`: verify the current
+  password, set a new one, and revoke all of the user's refresh tokens. Closes
+  the gap where a credential rotation needed direct database surgery.
+- **Read-only demo account** — a built-in `viewer` role (every `*:read`
+  permission, no writes) and a seeded `demo@iam.local`, so the public demo can be
+  browsed safely without an account. Disable with `DEMO_EMAIL=""`.
+
+### Security
+- **TOTP secrets encrypted at rest** — 2FA shared secrets are now AES-256-GCM
+  encrypted (`TOTP_ENC_KEY`) instead of stored in plaintext. Backward compatible
+  (legacy plaintext is read transparently and re-encrypted on the next enroll);
+  no data migration.
+- **Tenant-isolation hardening** — audit events are stamped with and filtered by
+  the active tenant; a cross-tenant `GET /users/:id` returns 404 (no existence
+  leak); API keys are bound to a tenant/project and re-checked on every use;
+  suspending a tenant invalidates its members' tokens.
+- **Fail-closed internal auth** — the gateway↔service token is required in every
+  environment (an empty token previously disabled the check silently); explicit
+  opt-out via `INTERNAL_AUTH_OPTIONAL=true` for local dev.
+- **Row-Level Security on writes** — tenant-scoped writes run inside an `iam_rls`
+  transaction, so PostgreSQL enforces isolation on `INSERT`/`UPDATE` (WITH CHECK),
+  not just reads.
+- **Gateway edge hardening** — the OIDC browser login/TOTP steps are rate-limited;
+  security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  conditional HSTS); internal errors return a generic message (no infra leak); the
+  `post_logout_redirect_uri` is validated against an allow-list; the MFA login step
+  shares the password account-lockout.
+- **Reject placeholder secrets** — a production process refuses to boot if
+  `JWT_SECRET` / `BOOTSTRAP_ADMIN_PASSWORD` / `INTERNAL_SERVICE_TOKEN` / the DB
+  password still carry a known demo/placeholder value.
+- **Least-privilege DB role (groundwork)** — a non-superuser `iam_app` role is
+  prepared for an eventual connection-role cutover off the RLS-bypassing superuser.
+
+### Infrastructure
+- **Sealed Secrets** — secrets are encrypted in git; the in-cluster controller
+  decrypts them. No plaintext secret in the repository.
+- **Default-deny NetworkPolicies** — every pod denies all ingress except an
+  explicit allow-list (gateway ← ingress controller, services ← gateway, DB ← its
+  service, NATS/Redis ← their callers).
+- **Immutable image pinning** — deployments reference `sha-<commit>` images
+  instead of `:latest`, so every rollout is deterministic and reversible.
+- **Container hardening** — non-root, read-only root filesystem, all Linux
+  capabilities dropped, no privilege escalation, CPU/memory limits, and the
+  service-account token unmounted.
+
 ## [0.10.1] - 2026-06-12
 
 Round out multi-tenant RBAC: role assignment is now tenant/project-scoped and
