@@ -13,6 +13,7 @@ dibangun dengan **Go** (Gin · gRPC · sqlc · PostgreSQL · JWT).
 | [Referensi API](api-reference.md) | Setiap endpoint REST (request/response/error) + kontrak gRPC |
 | [Model RBAC](rbac.md) | Role, permission, seed, RBAC dinamis, manajemen role |
 | [Multi-tenant](multi-tenant.md) | Tenant/project/membership, token terikat tenant, RBAC ter-scope, RLS, OIDC client→tenant |
+| [Security](security.md) | Auth/sesi, 2FA-at-rest, OIDC, isolasi tenant, secret, hardening network & container |
 | [Deployment & Ops](deployment.md) | Docker Compose, Kubernetes, env var, migrasi, pemecahan masalah |
 | [Pengembangan](development.md) | Toolchain, codegen, struktur proyek, tes, **ERD DB** |
 | [Koleksi API](api-collections.md) | Penggunaan Postman & Bruno (dua koleksi native) |

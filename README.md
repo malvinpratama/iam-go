@@ -32,14 +32,17 @@ shared code lives in dedicated module repos.
 
 ## Features
 
-- 🔐 **Auth**: register, login, JWT access + refresh tokens with **rotation** and **revocation**.
-- 👤 **Users**: profile CRUD + paginated search, via a dedicated service.
-- 🛡️ **Granular RBAC**: roles → permissions; **dynamic** (role changes apply on the next request); **scoped per tenant/project**.
+- 🔐 **Auth**: register, login, JWT access + refresh tokens with **rotation** (reuse-detection with a grace window) and **revocation**; self-service **password change**; account lockout on brute force.
+- 🔑 **2FA / TOTP**: opt-in authenticator-app 2FA with one-time recovery codes; the shared secret is **encrypted at rest** (AES-256-GCM).
+- 🪪 **OIDC / OAuth2 provider**: Authorization Code + **PKCE**, discovery document, JWKS, `/userinfo`, dynamic client registration, RP-initiated logout — log into the console (or any RP) via the IAM's own flow.
+- 🎫 **Scoped API keys**: `iamk_…` keys (SHA-256 hashed), scopes ⊆ the owner's current permissions.
+- 🛡️ **Granular RBAC**: roles → permissions; **dynamic** (role changes apply on the next request); **scoped per tenant/project**; full role/permission management.
 - 🏢 **Multi-tenant** (v0.10): tenants/projects/memberships, tenant-bound tokens + switcher, OIDC client→tenant, app-layer **+ Postgres RLS** isolation — see **[docs/en/multi-tenant.md](docs/en/multi-tenant.md)**.
-- 🧩 **Role management**: create/update/delete roles, grant/revoke permissions, assign/revoke roles.
+- 🔒 **Security-hardened** (v0.11): encrypted 2FA secrets, fail-closed internal auth, RLS-enforced writes, gateway edge hardening, Sealed Secrets, default-deny NetworkPolicies, non-root + read-only containers, immutable image pins — see **[docs/en/security.md](docs/en/security.md)**.
+- 👤 **Users**: profile CRUD + paginated search, via a dedicated service; audit log.
 - 🚪 **API Gateway**: single public entrypoint, REST→gRPC, per-route authorization.
 - 📦 **Ready to run**: Docker Compose + Kubernetes manifests, auto migrations & seed, bootstrap admin.
-- ✅ **Verified**: end-to-end smoke test + Postman/Bruno collections.
+- ✅ **Verified**: end-to-end smoke test + **Postgres integration tests** (Testcontainers) + Postman/Bruno collections.
 
 ## Architecture
 
@@ -97,9 +100,12 @@ Both stacks run live on **k3s via ArgoCD (GitOps)**, side by side, behind Cloudf
 - **Go** — interactive Swagger: **https://iam-go.digitalglobalgrowth.com/docs/**
 - **Rust** — interactive Swagger: **https://iam-rust.digitalglobalgrowth.com/docs/**
 
-Log in with `admin@iam.local` / `ChangeMeAdmin-2026` (Authorize → Bearer), then
-try any endpoint. The same k6 load runs against both for a Go-vs-Rust comparison
-— see **[BENCHMARKS.md](BENCHMARKS.md)** (`bench/load.js`).
+Log in with the **read-only demo account** `demo@iam.local` / `demo1234`
+(Authorize → Bearer), then try any endpoint — it can read everything but cannot
+modify anything. The admin console runs on top of both backends at
+**https://console.digitalglobalgrowth.com** (same demo credentials), with a live
+switch between the Go and Rust backend. The same k6 load runs against both for a
+Go-vs-Rust comparison — see **[BENCHMARKS.md](BENCHMARKS.md)** (`bench/load.js`).
 
 ## API
 
@@ -124,7 +130,8 @@ scripts/      smoke.sh
 ## Documentation
 
 Full bilingual docs in **[`docs/`](docs/en/README.md)**: Architecture · API
-Reference · RBAC · Deployment · Development (with DB ERD) · API Collections.
+Reference · RBAC · **[Security](docs/en/security.md)** · Multi-tenant · Deployment ·
+Development (with DB ERD) · API Collections.
 
 ## Development
 
@@ -141,10 +148,14 @@ Docker Compose (local) and Kubernetes (kustomize) — see
 
 ## Roadmap
 
-- [x] Rate limiting on auth endpoints (per-IP fixed window, 60/min)
-- [ ] Audit log for RBAC changes
-- [ ] OpenAPI/Swagger spec generation
-- [ ] Refresh-token reuse detection
+- [x] Rate limiting on auth endpoints (Redis-backed, shared across replicas)
+- [x] OIDC / OAuth2 provider — Authorization Code + PKCE (v0.7)
+- [x] 2FA / TOTP, scoped API keys, soft-delete (v0.9)
+- [x] Multi-tenant + multi-project with Postgres RLS (v0.10)
+- [x] Audit log + refresh-token reuse detection + OpenAPI/Swagger UI
+- [x] Security hardening — encrypted 2FA, Sealed Secrets, NetworkPolicies, image pinning (v0.11)
+- [ ] mTLS between the gateway and services
+- [ ] Egress NetworkPolicy + least-privilege DB connection-role cutover
 
 ## Contributing
 
