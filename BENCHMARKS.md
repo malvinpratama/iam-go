@@ -120,18 +120,28 @@ k6 run -e BASE_URL=https://iam-go.<domain> -e ADMIN_PASSWORD=<pw> bench/load.js
 #   → {route:me} and {route:users} deltas = the membership-check + directory cost
 ```
 
-| Route | What's new in v0.10 | p95 v0.9.2 | p95 v0.10 | Δ |
-|---|---|---|---|---|
-| `GET /me` | + active-membership check | _fill_ | _fill_ | _fill_ |
-| `GET /users` | members ⋈ batch profiles | _fill_ | _fill_ | _fill_ |
-| `GET /members` (RLS) | tx as `iam_rls` + GUC | n/a | _fill_ | vs `/roles` ↓ |
-| `GET /roles` (plain) | baseline | _fill_ | _fill_ | — |
+**Measured** — in-cluster k6 ([`iam-gitops/bench/k6.yaml`](http://gitea.digitalglobalgrowth.com/Digital-Global-Growth/iam-gitops)),
+Go stack, 50 VUs / 2 min hold, **130,971 requests, 0 errors, ~770 req/s**, warm
+cluster, 2026-06-12. Per-route latency (all 200):
 
-> Expectation: the RLS-wrapped reads carry one extra `BEGIN`/`SET LOCAL`/`COMMIT`
-> round-trip over the plain query; the membership check is a single indexed
-> `EXISTS` (and the permission cache absorbs the RBAC join). Fill the table from
-> a run on the cluster. These are **relative** numbers under identical conditions,
-> not production capacity (see Caveats).
+| Route | What it does in v0.10 | avg | p95 |
+|---|---|---|---|
+| `GET /me` | `ValidateToken` + active-membership check (no read) | 25.9 ms | 43.5 ms |
+| `GET /roles` (plain) | plain query — **RLS-bypass baseline** | 35.2 ms | **56.8 ms** |
+| `GET /members` (RLS) | tx as `iam_rls` + `set_config('app.tenant_id')` | 37.0 ms | **58.4 ms** |
+| `GET /projects` (RLS) | same RLS-wrapped read | 36.9 ms | **58.5 ms** |
+| `GET /users` | active-tenant directory (`ListMembers` ⋈ batch `GetProfiles`) | 39.6 ms | 62.6 ms |
+
+**RLS/tx overhead** = the RLS-wrapped reads vs the plain `/roles` baseline (same
+caller, same data): **+1.6–1.8 ms p95 (~+3%)**, +1.7–1.9 ms avg (~+5%). The extra
+`BEGIN` + `SET LOCAL ROLE iam_rls` + `set_config('app.tenant_id', …)` + `COMMIT`
+per request costs only **~2 ms** — a cheap price for **database-enforced** tenant
+isolation on top of the app-layer `WHERE`. `/users` is the heaviest (cross-service
+join), `/me` the lightest (`ValidateToken` only, no backend read).
+
+> Cross-version Δ vs single-tenant v0.9.2 isn't shown — no v0.9.2 deploy is live to
+> compare against. The numbers above are a self-contained, **relative** comparison
+> (RLS-wrapped vs plain, identical conditions), not production capacity (see Caveats).
 
 ## Horizontal scale — shared rate limiter (v0.8)
 
